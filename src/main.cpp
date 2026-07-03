@@ -1,55 +1,63 @@
-// danios — milestone 1: display bring-up smoke test.
-// Confirms the toolchain builds, the board flashes, and the display config is
-// correct. Draws a centered greeting plus corner markers so orientation is
-// unambiguous before building anything on top.
+// danios — F1 smoke screen: LVGL + touch, end to end.
+// A centered "tap me" button and a counter label that increments per tap.
+// Proves: DisplayService flush path, TouchService -> LVGL pointer indev,
+// LVGL event dispatch, and the loop-task tick. Replaced by the Launcher in F2.
 //
-// Orientation: the controller is landscape-native 320x240 (see the config
-// header), so portrait USB-C-down is the axis-swapped rotation 7 —
-// confirmed by eye on 2026-07-03: full-panel teal, red top-left, blue
-// bottom-right, text upright with the USB-C port at the bottom.
+// (The milestone-1 display diagnostic this file replaces lives in the initial
+// git commit if it's ever needed again.)
 #include <Arduino.h>
-#include "LGFX_ESP32_2432S024C.hpp"
+#include <lvgl.h>
 
-LGFX tft;
+#include "services/DisplayService.h"
+#include "services/TouchService.h"
+
+DisplayService displayService;
+TouchService touchService;
+
+namespace {
+
+lv_obj_t* counterLabel = nullptr;
+uint32_t tapCount = 0;
+
+void onTap(lv_event_t*) {
+  ++tapCount;
+  lv_label_set_text_fmt(counterLabel, "taps: %u",
+                        static_cast<unsigned>(tapCount));
+  Serial.printf("[danios] tap %u\n", static_cast<unsigned>(tapCount));
+}
+
+void buildSmokeScreen() {
+  lv_obj_t* scr = lv_scr_act();
+
+  lv_obj_t* btn = lv_btn_create(scr);
+  lv_obj_set_size(btn, 120, 60);
+  lv_obj_center(btn);
+  lv_obj_add_event_cb(btn, onTap, LV_EVENT_CLICKED, nullptr);
+
+  lv_obj_t* btnLabel = lv_label_create(btn);
+  lv_label_set_text(btnLabel, "tap me");
+  lv_obj_center(btnLabel);
+
+  counterLabel = lv_label_create(scr);
+  lv_label_set_text(counterLabel, "taps: 0");
+  lv_obj_align(counterLabel, LV_ALIGN_CENTER, 0, 70);
+}
+
+}  // namespace
 
 void setup() {
   Serial.begin(115200);
   delay(200);
-  Serial.println("\n[danios] display bring-up starting");
+  Serial.println("\n[danios] F1 smoke screen starting");
 
-  tft.init();
-  tft.setRotation(7);  // portrait, USB-C down (240x320)
-  tft.setBrightness(160);
+  displayService.begin();  // panel + LVGL + flush (must be first)
+  touchService.begin();    // CST820 -> LVGL indev (needs a display registered)
+  buildSmokeScreen();
 
-  // Solid teal fill (not black) so any reflection on the glass is overpowered,
-  // and a 1px white border so we can confirm the whole panel is addressed edge
-  // to edge (no unwritten strip).
-  const uint16_t BG = tft.color565(0, 64, 96);
-  tft.fillScreen(BG);
-  tft.drawRect(0, 0, tft.width(), tft.height(), TFT_WHITE);
-
-  // Corner markers so orientation is unambiguous:
-  //   red square = top-left, blue square = bottom-right.
-  tft.fillRect(0, 0, 30, 30, TFT_RED);
-  tft.fillRect(tft.width() - 30, tft.height() - 30, 30, 30, TFT_BLUE);
-
-  tft.setTextColor(TFT_WHITE, BG);
-  tft.setTextDatum(middle_center);
-  tft.setTextSize(2);
-  tft.drawString("hello danios", tft.width() / 2, tft.height() / 2 - 16);
-
-  tft.setTextSize(1);
-  tft.drawString(String(tft.width()) + " x " + String(tft.height()),
-                 tft.width() / 2, tft.height() / 2 + 16);
-
-  Serial.printf("[danios] display up: %d x %d\n", tft.width(), tft.height());
+  Serial.println("[danios] UI up — tap the button");
 }
 
 void loop() {
-  // Heartbeat so we can confirm the sketch is running over serial too.
-  static uint32_t last = 0;
-  if (millis() - last > 2000) {
-    last = millis();
-    Serial.println("[danios] alive");
-  }
+  displayService.tick();  // lv_timer_handler()
+  delay(5);
 }
