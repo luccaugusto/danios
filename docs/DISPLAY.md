@@ -46,6 +46,19 @@ top-left with the USB-C port at the bottom. `tft.width()` = 240,
 - Chip ID for sanity checks: RDID4 `0xD3` reads zeros (not a real ILI9341);
   RDDID `0x04` = `0x10 0x81 0xD9`.
 
-## NOTE:
+## LVGL glue (added by F1)
 
-when the foundation grows: once LVGL enters the picture, this doc is where its display driver glue (buffer size, flush callback binding to LovyanGFX) should get its few lines
+- LVGL **8.4** (v8 API), `include/lv_conf.h`, enabled via
+  `-DLV_CONF_INCLUDE_SIMPLE -Iinclude`.
+- `src/services/DisplayService.{h,cpp}` owns the `LGFX` instance and the LVGL
+  display driver: **two 240×30 draw buffers** (~28.8 KB total, static — no
+  PSRAM on this board).
+- **Byte order:** `LV_COLOR_16_SWAP 0`. The flush callback casts LVGL's buffer
+  to `lgfx::rgb565_t*` and calls `writePixels()` inside
+  `startWrite()/setAddrWindow()/endWrite()` — LovyanGFX converts to the
+  panel's big-endian RGB565 during the SPI write. Consequence: **image assets
+  stay standard (non-swapped) RGB565** in the LVGL image converter.
+- Touch: CST820 polled over I²C by `src/services/TouchService.{h,cpp}` and fed
+  to LVGL as a pointer indev; raw landscape-native coordinates are mapped by
+  `lib/touch_transform/` (swap + mirror flags **verified against on-screen
+  targets**, per the gotcha above).
