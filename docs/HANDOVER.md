@@ -55,6 +55,11 @@ LovyanGFX maintainer). Not needed anymore; it stays 0.
 
 **Display milestone is done** — `src/main.cpp` shows the full-screen teal +
 corner markers + centered "hello danios" in portrait, USB-C down.
+**Next up: F1 close-out.** The final whole-branch review + stale-doc/dead-code
+cleanup is specced in
+[`docs/superpowers/plans/2026-07-04-f1-final-review-and-cleanup.md`](superpowers/plans/2026-07-04-f1-final-review-and-cleanup.md)
+— start there next session.
+
 **Touch milestone — SOLVED (2026-07-04).** The month of CST820 NACKs had a
 plot twist: this unit is the **resistive** 2432S024 variant — there is no
 CST820 on the board. Touch is an **XPT2046 on the shared display SPI bus**
