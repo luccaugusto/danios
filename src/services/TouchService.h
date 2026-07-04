@@ -3,7 +3,9 @@
 // see docs/VENDOR-NOTES.md and the Task 6 ledger for the discovery trail.)
 // The XPT2046 shares the display's SPI bus; all bus handling, raw reads and
 // raw->screen mapping live in LovyanGFX (LGFX_ESP32_2432S024C.hpp holds the
-// measured calibration). This service only polls getTouch() and feeds LVGL.
+// measured calibration). This service polls getTouchRaw + convertRawXY —
+// equivalent to getTouch(), split to keep raw coords for the serial
+// verification contract — and feeds LVGL.
 #pragma once
 
 #include <lvgl.h>
@@ -25,7 +27,6 @@ private:
 
   LGFX* gfx_ = nullptr;
   lv_indev_drv_t indevDrv_{};
-  lv_indev_t* indev_ = nullptr;
   int16_t lastX_ = 0;  // LVGL wants the last point retained on release
   int16_t lastY_ = 0;
   bool wasPressed_ = false;

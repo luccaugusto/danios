@@ -6,7 +6,7 @@ void DisplayService::begin() {
   tft_.setBrightness(160);
 
   lv_init();
-  lv_disp_draw_buf_init(&drawBuf_, buf1_, buf2_, kBufPixels);
+  lv_disp_draw_buf_init(&drawBuf_, buf1_, nullptr, kBufPixels);
   lv_disp_drv_init(&dispDrv_);
   dispDrv_.hor_res = kHorRes;
   dispDrv_.ver_res = kVerRes;

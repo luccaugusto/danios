@@ -37,10 +37,10 @@
 #define LV_USE_ASSERT_MALLOC 1
 
 /*==================== FONTS ====================*/
-/* Montserrat 14 (default UI text) + 20 (headings/buttons). More sizes cost
- * flash; enable per-plan as UIs need them. */
+/* Montserrat 14 (default UI text). More sizes cost flash; enable per-plan as
+ * UIs need them (F2+ picks its own heading size). */
 #define LV_FONT_MONTSERRAT_14 1
-#define LV_FONT_MONTSERRAT_20 1
+#define LV_FONT_MONTSERRAT_20 0
 #define LV_FONT_DEFAULT &lv_font_montserrat_14
 
 /*==================== WIDGETS ====================*/

@@ -47,7 +47,6 @@ void buildSmokeScreen() {
 
 void setup() {
   Serial.begin(115200);
-  delay(200);
   Serial.println("\n[danios] F1 smoke screen starting");
 
   displayService.begin();  // panel + LVGL + flush (must be first)

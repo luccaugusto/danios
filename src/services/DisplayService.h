@@ -10,7 +10,7 @@
 class DisplayService {
 public:
   // Panel init (rotation 7 portrait 240x320, brightness 160), lv_init(),
-  // two 240x30 draw buffers, flush-callback registration.
+  // one 240x30 draw buffer, flush-callback registration.
   // Call exactly once from setup(), before any other LVGL call.
   void begin();
 
@@ -31,11 +31,14 @@ private:
 
   static constexpr int16_t kHorRes = 240;
   static constexpr int16_t kVerRes = 320;
-  static constexpr size_t kBufPixels = 240 * 30;  // per buffer; x2 ~= 28.8 KB
+  static constexpr size_t kBufRows = 30;
+  // Single buffer (14,400 bytes): flushCb is synchronous, so a second buffer
+  // would never overlap render with flush — it only earns its RAM if the
+  // flush ever goes async (DMA + deferred lv_disp_flush_ready).
+  static constexpr size_t kBufPixels = kHorRes * kBufRows;
 
   LGFX tft_;
   lv_disp_draw_buf_t drawBuf_{};
   lv_disp_drv_t dispDrv_{};
   lv_color_t buf1_[kBufPixels];
-  lv_color_t buf2_[kBufPixels];
 };

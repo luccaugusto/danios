@@ -3,10 +3,7 @@
 #include <Arduino.h>
 
 namespace {
-constexpr int16_t kScreenW = 240;
-constexpr int16_t kScreenH = 320;
-
-int16_t clampTo(int32_t v, int16_t max_exclusive) {
+int16_t clampTo(int32_t v, int32_t max_exclusive) {
   if (v < 0) return 0;
   if (v >= max_exclusive) return max_exclusive - 1;
   return static_cast<int16_t>(v);
@@ -20,7 +17,7 @@ void TouchService::begin(LGFX* gfx) {
   indevDrv_.type = LV_INDEV_TYPE_POINTER;
   indevDrv_.read_cb = readCb;
   indevDrv_.user_data = this;
-  indev_ = lv_indev_drv_register(&indevDrv_);
+  lv_indev_drv_register(&indevDrv_);
 
   Serial.println("[danios] touch: XPT2046 polling indev registered");
 }
@@ -34,8 +31,10 @@ bool TouchService::readTouch(int16_t& screen_x, int16_t& screen_y,
   raw_x = static_cast<int16_t>(tp.x);
   raw_y = static_cast<int16_t>(tp.y);
   gfx_->convertRawXY(&tp, 1);  // calibration + rotation from the LGFX config
-  screen_x = clampTo(tp.x, kScreenW);
-  screen_y = clampTo(tp.y, kScreenH);
+  // Post-rotation dimensions from LovyanGFX itself — the single source of
+  // truth; convertRawXY does no bounds check, so clamp its output.
+  screen_x = clampTo(tp.x, gfx_->width());
+  screen_y = clampTo(tp.y, gfx_->height());
   return true;
 }
 

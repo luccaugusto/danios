@@ -64,7 +64,9 @@ public:
       cfg.invert           = false;
       cfg.rgb_order        = true;   // this panel is RGB (BGR rendered teal as yellow)
       cfg.dlen_16bit       = false;
-      cfg.bus_shared       = false;  // TFT has its own SPI bus
+      cfg.bus_shared       = false;  // gates SD-card sharing only (SD is on VSPI);
+                                     // the XPT2046 shares this bus but arbitrates
+                                     // via the touch config's own bus_shared below
       _panel.config(cfg);
     }
     {  // PWM backlight
@@ -80,9 +82,10 @@ public:
       auto cfg = _touch.config();
       // Calibration + axis mapping measured on this unit (2026-07-04 diag,
       // ledger step 4): raw X grows toward the portrait BOTTOM, raw Y grows
-      // toward the portrait LEFT. With the display's rotation-7 pipeline
-      // (swap + mirror both), inverted x cal + straight y cal land taps on
-      // screen coords. min>max is intentional — it inverts that axis.
+      // toward the portrait LEFT. min>max is intentional — it inverts that
+      // axis. These corners map raw -> rotation-INDEPENDENT panel-native
+      // 320x240 coords; convertRawXY applies the active rotation on top at
+      // call time, so the constants stay valid if setRotation ever changes.
       cfg.x_min      = 3680;  // raw X at portrait bottom -> panel x 0
       cfg.x_max      = 650;   // raw X at portrait top    -> panel x 319
       cfg.y_min      = 580;   // raw Y at portrait right  -> panel y 0
