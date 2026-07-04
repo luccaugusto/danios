@@ -1,120 +1,132 @@
 # danios — Handover / Progress Notes
 
-**Last updated:** 2026-07-03 (display bring-up ✅ SOLVED)
-**Phase:** Milestone 1 — display bring-up (first hardware step of the build)
+**Last updated:** 2026-07-04 (F1 closed — LVGL + touch verified on hardware)
+**Phase:** Foundation. **F1 (LVGL + touch) is DONE.** Next: **F2 — launcher**
+([`docs/superpowers/plans/2026-07-03-foundation-2-launcher.md`](superpowers/plans/2026-07-03-foundation-2-launcher.md)).
 
 Full product design lives in
-[`docs/superpowers/specs/2026-06-03-esp32-gift-device-design.md`](superpowers/specs/2026-06-03-esp32-gift-device-design.md).
+[`docs/superpowers/specs/2026-06-03-esp32-gift-device-design.md`](superpowers/specs/2026-06-03-esp32-gift-device-design.md);
+the milestone sequence is the roadmap
+([`docs/superpowers/plans/2026-07-03-danios-roadmap.md`](superpowers/plans/2026-07-03-danios-roadmap.md)).
 Environment setup is in the repo [`README.md`](../README.md).
 
 ---
 
-## What we're doing right now
+## Where we are
 
-Getting the screen to light up correctly is milestone 1 of the bring-up sequence
-(`display → touch → SD → WiFi/weather → Bluetooth/audio`). Nothing else is built
-until the display is solid, because everything (LVGL, all four apps) renders on it.
+F1 delivered the whole display+touch foundation, verified on hardware and
+closed out with a whole-branch review (findings fixed or waived — see the
+`fix: apply F1 whole-branch review findings` commit):
 
-The current sketch (`src/main.cpp`) is a **diagnostic**, not product code: it fills
-the screen, draws a white border (to check full-panel coverage) and red/blue corner
-markers (to check orientation), and prints the resolution + a serial heartbeat.
+- **DisplayService** (`src/services/DisplayService.{h,cpp}`) — owns the LGFX
+  instance and the LVGL 8.4 display driver. One static 240×30 draw buffer,
+  synchronous swap-free flush (`LV_COLOR_16_SWAP 0`, cast to
+  `lgfx::rgb565_t*`). Portrait 240×320 via `setRotation(7)`.
+- **TouchService** (`src/services/TouchService.{h,cpp}`) — XPT2046 polled
+  through LovyanGFX (`getTouchRaw` + `convertRawXY`; split deliberately to
+  keep raw coords for the serial verification contract), debounced with
+  `lib/press_debounce/` (native-tested), fed to LVGL as pointer indev.
+- **`include/LGFX_ESP32_2432S024.hpp`** — the hardware truth: panel geometry,
+  pins, and measured touch calibration. Renamed from `...S024C.hpp` (this is
+  NOT the capacitive C variant).
+- **`src/main.cpp`** — F1 smoke screen (tap-counter button). Placeholder that
+  F2's launcher replaces.
+- Host tests: `pio test -e native` runs `test/test_press_debounce`.
 
-### Status of the display config — SOLVED (2026-07-03)
+### What F2 starts from
 
-| Setting | Value | Status |
-| --- | --- | --- |
-| Controller | **landscape-native 320×240 clone** (ILI9342-class geometry), driven by `Panel_ILI9341` with overridden dims | ✅ confirmed (see below) |
-| Pins (SCLK 14, MOSI 13, MISO 12, CS 15, DC 2, RST none, BL 27) | — | ✅ confirmed (matches Sunton board def + TFT_eSPI reference) |
-| `panel_width`/`memory_width` × `panel_height`/`memory_height` | **320 × 240** (not 240×320!) | ✅ confirmed by eye |
-| `rgb_order` | `true` (RGB) | ✅ confirmed by eye (BGR rendered teal as yellow) |
-| `invert` | `false` | ✅ confirmed |
-| Rotation for portrait, USB-C down | **`setRotation(7)`** (MADCTL `MV\|MX\|MY` — swap + both mirrors) | ✅ confirmed by eye: full fill, text upright, red TL / blue BR |
+Launcher plan is written (link above). It replaces the smoke screen with the
+home screen + app framework. Everything it needs (flush path, indev, tick
+loop) is proven; render at 240×320 portrait per `docs/DISPLAY.md`.
 
-### Root cause of the old "rotation vs. fill" mystery
+---
 
-The panel's controller is **not a genuine portrait ILI9341**:
+## Hard-won hardware knowledge (don't rediscover)
+
+### Display root cause (2026-07-03)
+
+The panel's controller is **not a genuine portrait ILI9341** — it's a
+landscape-native 320×240 clone (ILI9342-class geometry):
 
 - It fails the ILI9341 ID check — RDID4 (`0xD3`) reads all zeros where a real
   ILI9341 returns `0x93 0x41`. RDDID (`0x04`) returns `0x10 0x81 0xD9`.
-  MADCTL/readback (`0x0B`) works and matches whatever LovyanGFX writes.
-- Photos of the rotation sweep proved its **column axis runs along the 320px
-  long side**: non-swapped (even) rotations drew text along the long axis,
-  which is impossible on portrait-native silicon.
+- With the old (wrong) 240×320 config, even rotations only addressed 240 of
+  320 physical columns ("~75% partial fills") and row addresses past 239
+  wrapped modulo 240 (phantom lines, misplaced squares). Declaring
+  `panel/memory = 320×240` fixed every rotation; portrait is rotation 7
+  (MADCTL `MV|MX|MY`). `rgb_order = true` (RGB), `invert = false`.
+- `offset_rotation` **must stay 0–3** — 4..7 corrupts the write window (per
+  LovyanGFX maintainer). It stays 0.
 
-With the old (wrong) 240×320 config, every symptom followed mechanically:
-even rotations only addressed 240 of the 320 physical columns (the "~75%
-partial fills" — 240/320 = 0.75), and row addresses past 239 **wrap modulo
-240** (that produced the phantom white line / misplaced corner squares).
-There was never a LovyanGFX bug and never a mirrored-panel exotica — just
-transposed panel geometry. Declaring 320×240 makes every rotation address
-cleanly; portrait is simply an odd (axis-swapped) rotation.
+### Touch plot twist (2026-07-04)
 
-Gotcha that still stands (in `include/LGFX_ESP32_2432S024.hpp`):
-`offset_rotation` **must be 0–3** — 4..7 corrupts the write window (per
-LovyanGFX maintainer). Not needed anymore; it stays 0.
+The month of CST820 I²C NACKs had a simple answer: **there is no CST820** —
+this unit is the **resistive** 2432S024 variant. Touch is an XPT2046 **on the
+shared display SPI bus** (CS 33, PENIRQ 36), configured in
+`include/LGFX_ESP32_2432S024.hpp` with on-device measured calibration. The
+min>max cal corners map raw → rotation-independent panel-native coords;
+`convertRawXY` applies the active rotation, so a future `setRotation` change
+needs no re-measurement. Full discovery trail: `.superpowers/sdd/progress.md`
+(historical ledger); vendor reference: `docs/VENDOR-NOTES.md`; pin tables:
+`docs/hardware.md`.
 
-**Display milestone is done** — `src/main.cpp` shows the full-screen teal +
-corner markers + centered "hello danios" in portrait, USB-C down.
-**Next up: F1 close-out.** The final whole-branch review + stale-doc/dead-code
-cleanup is specced in
-[`docs/superpowers/plans/2026-07-04-f1-final-review-and-cleanup.md`](superpowers/plans/2026-07-04-f1-final-review-and-cleanup.md)
-— start there next session.
+### Serial verification workflow
 
-**Touch milestone — SOLVED (2026-07-04).** The month of CST820 NACKs had a
-plot twist: this unit is the **resistive** 2432S024 variant — there is no
-CST820 on the board. Touch is an **XPT2046 on the shared display SPI bus**
-(CS 33, PENIRQ 36), now configured inside `include/LGFX_ESP32_2432S024.hpp`
-with on-device measured calibration; `TouchService` polls it via LovyanGFX
-(`getTouchRaw`/`convertRawXY`) and feeds the LVGL pointer indev. Tap counter
-verified on hardware. Full discovery trail: `.superpowers/sdd/progress.md`;
-vendor reference material: `docs/VENDOR-NOTES.md`. `docs/hardware.md` has the
-corrected pin table.
+`pio device monitor` dies without a TTY — use
+`python3 .superpowers/sdd/serial_capture.py --reset --seconds 10`. Start the
+capture **before** tapping; prints are lost when nothing listens. Touch-downs
+print `[touch] raw=(..) screen=(..)` — the four-corner calibration check
+(ledger step 7, reused by the F5 fallback procedure) reads exactly that line.
 
 ---
 
 ## Hardware
 
-- **Board:** ESP32-2432S024 ("Cheap Yellow Display", 2.4"), ESP32-WROOM-32.
-  **RESISTIVE-touch variant** (discovered 2026-07-04 — docs named it S024C
-  but there's no capacitive controller on this unit).
-- **Display:** ILI9341-class landscape-native clone, 320×240, on HSPI.
-  **SD card** is on a separate bus (VSPI, CS 5).
-- **Touch:** XPT2046 resistive, shared display SPI (CS 33, PENIRQ 36) —
-  working; config + calibration in `include/LGFX_ESP32_2432S024.hpp`.
+- **Board:** ESP32-2432S024 ("Cheap Yellow Display", 2.4"), ESP32-WROOM-32,
+  **resistive-touch variant**. Details + pin tables: `docs/hardware.md`.
+- **Display:** landscape-native 320×240 ILI9341-class clone on HSPI; portrait
+  UI via rotation 7. App-facing rules: `docs/DISPLAY.md`.
+- **Touch:** XPT2046 resistive, shared display SPI — working, calibrated.
+- **SD card:** separate bus (VSPI, CS 5) — untouched so far; F3 proves it.
 
 ## Toolchain
 
-- **PlatformIO Core 6.1.19**, `platform = espressif32@7.0.1`, `framework = arduino`
-  (arduino-esp32 3.x / ESP-IDF 5.x), `board = esp32dev`.
-- Flashing over USB-C on `/dev/ttyUSB0` (CH340). Build + flash from repo root: `pio run -t upload`.
-- Config in [`platformio.ini`](../platformio.ini).
+- **PlatformIO**, `platform = espressif32@7.0.1`, `framework = arduino`,
+  `board = esp32dev`, C++17, `huge_app.csv` partitions.
+- Flash over USB-C on `/dev/ttyUSB0` (CH340): `pio run -t upload`.
+- Host tests: `pio test -e native` (the `cyd` env ignores test/ by design).
 
-## Libraries
+## Libraries (in use)
 
 | Library | Source / version | Used for |
 | --- | --- | --- |
-| **LovyanGFX** | `lovyan03/LovyanGFX@^1.2.0` (PlatformIO reg) | Display driver (SPI ILI9341) + graphics. Bound to LVGL later. |
-| Arduino-ESP32 core | bundled with `espressif32@7.0.1` | Serial, GPIO, SPI, and later WiFi/BT/SD/NVS. |
+| **LovyanGFX** | `lovyan03/LovyanGFX@^1.2.0` | Display + XPT2046 touch driver |
+| **LVGL** | `lvgl/lvgl@8.4.0` (v8 API) | UI toolkit; config in `include/lv_conf.h` |
+| Arduino-ESP32 core | bundled with `espressif32@7.0.1` | Serial, GPIO, SPI; later WiFi/BT/SD/NVS |
 
-**Planned (per the design spec, not yet added):** LVGL (UI), ArduinoJson (weather/geo
-parsing), ESP32-A2DP + arduino-audio-tools/libhelix (Bluetooth MP3 audio).
+**Planned (per spec, not yet added):** ArduinoJson (weather/geo parsing),
+ESP32-A2DP + arduino-audio-tools/libhelix (Bluetooth MP3 audio).
 
 ## Key files
 
 ```
-platformio.ini                          PlatformIO project + deps
-src/main.cpp                            diagnostic bring-up sketch (throwaway)
-include/LGFX_ESP32_2432S024.hpp        LovyanGFX board config (the real deliverable so far)
-docs/DISPLAY.md                         display essentials for app development — read this first
+platformio.ini                         PlatformIO project + deps (envs: cyd, native)
+src/main.cpp                           F1 smoke screen (replaced by F2 launcher)
+src/services/DisplayService.{h,cpp}    LGFX + LVGL display driver glue
+src/services/TouchService.{h,cpp}      XPT2046 -> LVGL pointer indev
+lib/press_debounce/                    touch release debounce (native-tested)
+include/LGFX_ESP32_2432S024.hpp        LovyanGFX board config — the hardware truth
+include/lv_conf.h                      LVGL 8.4 config
+docs/DISPLAY.md                        display essentials for app development — read first
+docs/hardware.md                       board/pin reference
 ```
 
-## Reference configs (authoritative for pins; treat orientation flags with care)
+## Reference configs (authoritative for pins; treat orientation/touch flags with care)
 
-- Sunton board def (pins): `rzeldent/platformio-espressif32-sunton` → `esp32-2432S024C.json`
-  — states `DISPLAY_SWAP_XY=false`, `DISPLAY_MIRROR_X=true`, `DISPLAY_MIRROR_Y=false`.
-  ⚠️ Those flags assume a portrait-native 240×320 controller; our unit's clone is
-  landscape-native 320×240, so the flags don't transfer literally (we needed
-  swap+both-mirrors, i.e. LovyanGFX rotation 7). Pin assignments were all correct.
+- Sunton board def (pins): `rzeldent/platformio-espressif32-sunton` →
+  `esp32-2432S024C.json`. ⚠️ Orientation flags assume portrait-native
+  silicon; our clone is landscape-native (we need rotation 7). Pins correct.
 - `rzeldent/esp32-smartdisplay` — battle-tested LVGL driver library for these boards.
-- `hi631/ESP32-2432S024C` and `edmasini/esp32-2432S024-Capacitive` — LovyanGFX + touch examples.
+- `hi631/ESP32-2432S024C` and `edmasini/esp32-2432S024-Capacitive` — LovyanGFX +
+  touch examples for the **C (capacitive) variant** — NOT this unit's touch.
 - LovyanGFX mirrored-panel rotation quirk: issues #711 and #600.
