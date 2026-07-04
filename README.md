@@ -4,8 +4,9 @@ A small, battery-powered 2.4" touchscreen "app phone" built on an ESP32
 ("Cheap Yellow Display"). Home-screen launcher with four apps — **Weather,
 Music, Calculator, Oracle** — plus a Settings screen. Personal gift project.
 
-- **Board:** ESP32-2432S024C (2.4" capacitive CYD, ESP32-WROOM-32 — has Bluetooth
-  Classic / A2DP, which the S3/C3 don't).
+- **Board:** ESP32-2432S024 (2.4" CYD, **resistive** XPT2046 touch on the shared
+  display SPI — not the capacitive C variant; see `docs/hardware.md`).
+  ESP32-WROOM-32 — has Bluetooth Classic / A2DP, which the S3/C3 don't.
 - **Full design:** [`docs/superpowers/specs/2026-06-03-esp32-gift-device-design.md`](docs/superpowers/specs/2026-06-03-esp32-gift-device-design.md)
   — architecture, apps, radio strategy, APIs, testing. **Approved, ready to build.**
 
@@ -54,9 +55,10 @@ pio device list       # should show /dev/ttyUSB0 once the board is plugged in
 - **USB-serial driver** → nothing to install; the CH340 (`ch341`) / CP2102
   (`cp210x`) drivers are in the mainline kernel and autoload on plug-in.
 - **Display config is the #1 pitfall.** The CYD's exact panel wiring (pins, color
-  inversion, rotation) is easy to get wrong. Copy a known-good LovyanGFX config
-  rather than deriving it:
-  - [`edmasini/esp32-2432S024-Capacitive`](https://github.com/edmasini/esp32-2432S024-Capacitive) — our exact variant
+  inversion, rotation) is easy to get wrong. The working, hardware-verified
+  config for this unit lives in `include/LGFX_ESP32_2432S024.hpp` — don't
+  re-derive it (`docs/DISPLAY.md` has the story). External references:
+  - [`edmasini/esp32-2432S024-Capacitive`](https://github.com/edmasini/esp32-2432S024-Capacitive) — the **C (capacitive) variant**, close but NOT this unit (ours is resistive)
   - [`witnessmenow/ESP32-Cheap-Yellow-Display`](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display) — general CYD resources
 
 ---

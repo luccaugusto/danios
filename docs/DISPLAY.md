@@ -24,11 +24,11 @@ top-left with the USB-C port at the bottom. `tft.width()` = 240,
 
 | What | Value |
 | --- | --- |
-| Board | ESP32-2432S024C ("Cheap Yellow Display" 2.4" capacitive), ESP32-WROOM-32 |
+| Board | ESP32-2432S024 ("Cheap Yellow Display" 2.4" **resistive** variant), ESP32-WROOM-32 |
 | Display bus | HSPI — SCLK 14, MOSI 13, MISO 12, CS 15, DC 2, no RST, backlight PWM on 27 |
 | Colors | RGB565, `rgb_order = true` (RGB), `invert = false` — both confirmed by eye |
-| SD card | separate bus (VSPI, CS 5) — display never shares SPI |
-| Touch | CST816S/CST820, I²C SDA 33 / SCL 32, INT 21, RST 25, addr 0x15 (next milestone) |
+| SD card | separate bus (VSPI, CS 5) |
+| Touch | XPT2046 resistive on the **same HSPI bus** as the display (CS 33, PENIRQ 36) — pins + calibration in `docs/hardware.md` |
 
 ## Gotchas (hard-won, don't rediscover)
 
@@ -40,9 +40,10 @@ top-left with the USB-C port at the bottom. `tft.width()` = 240,
 - Reference configs (Sunton board def, TFT_eSPI setups) are right about
   **pins** but wrong about **orientation** for this clone — they assume
   portrait-native silicon.
-- Expect **touch coordinates to need the same swap + mirror** as the display
-  (rotation 7 = MADCTL `MV|MX|MY`). Verify against on-screen targets, not the
-  board def's touch flags.
+- Touch calibration is **measured and solved** — the min>max corner constants
+  in `include/LGFX_ESP32_2432S024.hpp` map raw readings to rotation-independent
+  panel-native coords, and LovyanGFX's `convertRawXY` applies the active
+  rotation on top. Don't re-measure; don't add manual swap/mirror code.
 - Chip ID for sanity checks: RDID4 `0xD3` reads zeros (not a real ILI9341);
   RDDID `0x04` = `0x10 0x81 0xD9`.
 
@@ -51,14 +52,14 @@ top-left with the USB-C port at the bottom. `tft.width()` = 240,
 - LVGL **8.4** (v8 API), `include/lv_conf.h`, enabled via
   `-DLV_CONF_INCLUDE_SIMPLE -Iinclude`.
 - `src/services/DisplayService.{h,cpp}` owns the `LGFX` instance and the LVGL
-  display driver: **two 240×30 draw buffers** (~28.8 KB total, static — no
-  PSRAM on this board).
+  display driver: **one 240×30 draw buffer** (14.4 KB, static — no PSRAM on
+  this board; a second buffer only pays off if the flush ever goes async).
 - **Byte order:** `LV_COLOR_16_SWAP 0`. The flush callback casts LVGL's buffer
   to `lgfx::rgb565_t*` and calls `writePixels()` inside
   `startWrite()/setAddrWindow()/endWrite()` — LovyanGFX converts to the
   panel's big-endian RGB565 during the SPI write. Consequence: **image assets
   stay standard (non-swapped) RGB565** in the LVGL image converter.
-- Touch: CST820 polled over I²C by `src/services/TouchService.{h,cpp}` and fed
-  to LVGL as a pointer indev; raw landscape-native coordinates are mapped by
-  `lib/touch_transform/` (swap + mirror flags **verified against on-screen
-  targets**, per the gotcha above).
+- Touch: XPT2046 polled through LovyanGFX (`getTouchRaw` + `convertRawXY` —
+  calibration + rotation live in the LGFX config) by
+  `src/services/TouchService.{h,cpp}`, debounced (`lib/press_debounce/`), and
+  fed to LVGL as a pointer indev. There is no separate mapping code.
