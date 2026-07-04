@@ -1,2 +1,5 @@
 .pio/
 .claude/settings.local.json
+
+# Vendor reference material (cloned repos, datasheets) — see docs/VENDOR-NOTES.md
+reference/

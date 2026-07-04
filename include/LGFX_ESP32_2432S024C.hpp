@@ -1,23 +1,22 @@
-// LovyanGFX display config for the ESP32-2432S024C ("Cheap Yellow Display",
-// 2.4" capacitive variant).
+// LovyanGFX display + touch config for the ESP32-2432S024 ("Cheap Yellow
+// Display", 2.4"). Filename says S024C, but Task 6 diagnostics proved this
+// unit is the RESISTIVE variant: XPT2046 on the shared display SPI bus, NO
+// CST820 (docs/VENDOR-NOTES.md, .superpowers/sdd/progress.md).
 //
-// Pins from the Sunton board definition
-// (rzeldent/platformio-espressif32-sunton), cross-checked against
-// edmasini/esp32-2432S024-Capacitive:
-//   Display: ILI9341 over HSPI  — SCLK 14, MOSI 13, MISO 12, CS 15, DC 2, RST none
+// Pins per the vendor schematic (reference/2.4inch_ESP32-2432S024/5-Schematic):
+//   Display: ILI9341-class over HSPI — SCLK 14, MOSI 13, MISO 12, CS 15, DC 2
 //   Backlight (PWM): GPIO 27
-//   Color order: BGR
-// Touch (CST816S/CST820 on I2C SDA 33 / SCL 32) is intentionally NOT configured
-// here yet — that's the next bring-up step after the display is confirmed.
+//   Touch: XPT2046 on the SAME SPI bus — CS 33, PENIRQ 36
 #pragma once
 
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
 class LGFX : public lgfx::LGFX_Device {
-  lgfx::Panel_ILI9341 _panel;
-  lgfx::Bus_SPI       _bus;
-  lgfx::Light_PWM     _light;
+  lgfx::Panel_ILI9341   _panel;
+  lgfx::Bus_SPI         _bus;
+  lgfx::Light_PWM       _light;
+  lgfx::Touch_XPT2046   _touch;
 
 public:
   LGFX(void) {
@@ -76,6 +75,29 @@ public:
       cfg.pwm_channel = 7;
       _light.config(cfg);
       _panel.setLight(&_light);
+    }
+    {  // XPT2046 resistive touch, sharing the display's HSPI bus.
+      auto cfg = _touch.config();
+      // Calibration + axis mapping measured on this unit (2026-07-04 diag,
+      // ledger step 4): raw X grows toward the portrait BOTTOM, raw Y grows
+      // toward the portrait LEFT. With the display's rotation-7 pipeline
+      // (swap + mirror both), inverted x cal + straight y cal land taps on
+      // screen coords. min>max is intentional — it inverts that axis.
+      cfg.x_min      = 3680;  // raw X at portrait bottom -> panel x 0
+      cfg.x_max      = 650;   // raw X at portrait top    -> panel x 319
+      cfg.y_min      = 580;   // raw Y at portrait right  -> panel y 0
+      cfg.y_max      = 3430;  // raw Y at portrait left   -> panel y 239
+      cfg.offset_rotation = 0;
+      cfg.pin_int    = 36;    // PENIRQ — driver skips SPI traffic when idle
+      cfg.bus_shared = true;  // same bus as the panel: pause its transaction
+      cfg.spi_host   = SPI2_HOST;
+      cfg.freq       = 1000000;
+      cfg.pin_sclk   = 14;
+      cfg.pin_mosi   = 13;
+      cfg.pin_miso   = 12;
+      cfg.pin_cs     = 33;
+      _touch.config(cfg);
+      _panel.setTouch(&_touch);
     }
     setPanel(&_panel);
   }

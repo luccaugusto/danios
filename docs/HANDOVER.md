@@ -55,19 +55,27 @@ LovyanGFX maintainer). Not needed anymore; it stays 0.
 
 **Display milestone is done** — `src/main.cpp` shows the full-screen teal +
 corner markers + centered "hello danios" in portrait, USB-C down.
-**Next milestone: touch** (CST816S/CST820, I²C SDA 33 / SCL 32, INT 21,
-RST 25, addr 0x15). Note: touch coordinates will likely need the same
-landscape-native transposition + mirroring as the display — don't assume the
-Sunton board def's touch flags are literally right for this clone.
+**Touch milestone — SOLVED (2026-07-04).** The month of CST820 NACKs had a
+plot twist: this unit is the **resistive** 2432S024 variant — there is no
+CST820 on the board. Touch is an **XPT2046 on the shared display SPI bus**
+(CS 33, PENIRQ 36), now configured inside `include/LGFX_ESP32_2432S024C.hpp`
+with on-device measured calibration; `TouchService` polls it via LovyanGFX
+(`getTouchRaw`/`convertRawXY`) and feeds the LVGL pointer indev. Tap counter
+verified on hardware. Full discovery trail: `.superpowers/sdd/progress.md`;
+vendor reference material: `docs/VENDOR-NOTES.md`. `docs/hardware.md` has the
+corrected pin table.
 
 ---
 
 ## Hardware
 
-- **Board:** ESP32-2432S024C ("Cheap Yellow Display", 2.4" capacitive), ESP32-WROOM-32.
-- **Display:** ILI9341, 240×320, on HSPI. **SD card** is on a separate bus (VSPI, CS 5).
-- **Touch:** CST816S/CST820 capacitive, I²C (SDA 33, SCL 32, INT 21, RST 25, addr 0x15)
-  — **not wired up yet**, that's the next milestone.
+- **Board:** ESP32-2432S024 ("Cheap Yellow Display", 2.4"), ESP32-WROOM-32.
+  **RESISTIVE-touch variant** (discovered 2026-07-04 — docs named it S024C
+  but there's no capacitive controller on this unit).
+- **Display:** ILI9341-class landscape-native clone, 320×240, on HSPI.
+  **SD card** is on a separate bus (VSPI, CS 5).
+- **Touch:** XPT2046 resistive, shared display SPI (CS 33, PENIRQ 36) —
+  working; config + calibration in `include/LGFX_ESP32_2432S024C.hpp`.
 
 ## Toolchain
 

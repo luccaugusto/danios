@@ -51,7 +51,7 @@ void setup() {
   Serial.println("\n[danios] F1 smoke screen starting");
 
   displayService.begin();  // panel + LVGL + flush (must be first)
-  touchService.begin();    // CST820 -> LVGL indev (needs a display registered)
+  touchService.begin(&displayService.gfx());  // XPT2046 -> LVGL indev
   buildSmokeScreen();
 
   Serial.println("[danios] UI up — tap the button");

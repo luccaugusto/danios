@@ -21,6 +21,10 @@ public:
   // Arduino loop task only — LVGL is not thread-safe (roadmap §2).
   void tick();
 
+  // The LGFX instance also owns the XPT2046 touch driver (shared SPI bus) —
+  // TouchService::begin() needs it. Valid only after begin().
+  LGFX& gfx() { return tft_; }
+
 private:
   static void flushCb(lv_disp_drv_t* drv, const lv_area_t* area,
                       lv_color_t* pixels);

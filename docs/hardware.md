@@ -1,6 +1,16 @@
 # danios hardware reference
 
-**Last updated:** 2026-07-03
+**Last updated:** 2026-07-04
+
+> ⚠️ **2026-07-04 correction:** the CYD unit on hand is the **RESISTIVE**
+> 2432S024 variant — XPT2046 on the shared display SPI bus (CS 33, PENIRQ 36),
+> **no CST820 / no touch I²C bus at all**. Proven by on-device diagnostics
+> (I²C dead on every address, PENIRQ fires on press, XPT2046 returns
+> coordinates on the display bus pins). The "Touch — CST820, I²C" section
+> below described the C variant we *thought* we had; kept for reference.
+> Working touch config lives in `include/LGFX_ESP32_2432S024C.hpp`
+> (measured calibration) — see `docs/VENDOR-NOTES.md` and
+> `.superpowers/sdd/progress.md` for the discovery trail.
 
 ## Board currently on hand: bare ESP32 devkit (NOT the CYD)
 
@@ -48,7 +58,21 @@ sources for this exact variant:
   sets `panel_width/height = 320×320` as a rotation workaround — if rotations
   1/3 show an 80 px offset, that's why. Test all rotations you plan to use early.
 
-### Touch — CST820, I²C
+### Touch (ACTUAL, this unit) — XPT2046 resistive, shared display SPI
+
+| Signal | GPIO |
+| --- | --- |
+| SCLK / MOSI / MISO | 14 / 13 / 12 (same as display) |
+| CS | 33 |
+| PENIRQ | 36 (low while pressed; 10k pull-up on board) |
+
+- LovyanGFX `Touch_XPT2046`, `spi_host = SPI2_HOST`, `bus_shared = true`, 1 MHz.
+- Measured calibration (raw 12-bit, portrait USB-down): x_min=3680, x_max=650,
+  y_min=580, y_max=3430 (min>max inverts the axis). Raw X grows toward screen
+  bottom, raw Y toward screen left.
+- Resistive = needs firm/pointed presses; no multitouch, no gestures.
+
+### Touch — CST820, I²C (⚠️ C-variant only — NOT this unit)
 
 | Signal | GPIO |
 | --- | --- |
