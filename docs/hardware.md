@@ -8,7 +8,7 @@
 > (I²C dead on every address, PENIRQ fires on press, XPT2046 returns
 > coordinates on the display bus pins). The "Touch — CST820, I²C" section
 > below described the C variant we *thought* we had; kept for reference.
-> Working touch config lives in `include/LGFX_ESP32_2432S024C.hpp`
+> Working touch config lives in `include/LGFX_ESP32_2432S024.hpp`
 > (measured calibration) — see `docs/VENDOR-NOTES.md` and
 > `.superpowers/sdd/progress.md` for the discovery trail.
 

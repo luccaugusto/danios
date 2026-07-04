@@ -5,7 +5,7 @@
 
 #include <lvgl.h>
 
-#include "LGFX_ESP32_2432S024C.hpp"
+#include "LGFX_ESP32_2432S024.hpp"
 
 class DisplayService {
 public:

@@ -2,7 +2,7 @@
 // (This board turned out to be the RESISTIVE 2432S024 variant — no CST820;
 // see docs/VENDOR-NOTES.md and the Task 6 ledger for the discovery trail.)
 // The XPT2046 shares the display's SPI bus; all bus handling, raw reads and
-// raw->screen mapping live in LovyanGFX (LGFX_ESP32_2432S024C.hpp holds the
+// raw->screen mapping live in LovyanGFX (LGFX_ESP32_2432S024.hpp holds the
 // measured calibration). This service polls getTouchRaw + convertRawXY —
 // equivalent to getTouch(), split to keep raw coords for the serial
 // verification contract — and feeds LVGL.
@@ -10,7 +10,7 @@
 
 #include <lvgl.h>
 
-#include "LGFX_ESP32_2432S024C.hpp"
+#include "LGFX_ESP32_2432S024.hpp"
 #include "press_debounce.h"
 
 class TouchService {

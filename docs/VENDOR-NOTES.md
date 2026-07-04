@@ -5,7 +5,7 @@
 > MISO 12, CS 33, PENIRQ 36). There is no CST820 on the board; the entire
 > CST820 section below applies only to the C variant. Diag data + the working
 > calibration are in `.superpowers/sdd/progress.md` and
-> `include/LGFX_ESP32_2432S024C.hpp`. Beware: the repo's 7_1 LovyanGFX
+> `include/LGFX_ESP32_2432S024.hpp`. Beware: the repo's 7_1 LovyanGFX
 > example uses the 2.8" CYD's separate touch pins (25/32/39) — WRONG for this
 > board; the schematic + factory R demo (shared bus) are what matched.
 

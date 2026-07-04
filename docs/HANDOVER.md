@@ -49,7 +49,7 @@ There was never a LovyanGFX bug and never a mirrored-panel exotica — just
 transposed panel geometry. Declaring 320×240 makes every rotation address
 cleanly; portrait is simply an odd (axis-swapped) rotation.
 
-Gotcha that still stands (in `include/LGFX_ESP32_2432S024C.hpp`):
+Gotcha that still stands (in `include/LGFX_ESP32_2432S024.hpp`):
 `offset_rotation` **must be 0–3** — 4..7 corrupts the write window (per
 LovyanGFX maintainer). Not needed anymore; it stays 0.
 
@@ -63,7 +63,7 @@ cleanup is specced in
 **Touch milestone — SOLVED (2026-07-04).** The month of CST820 NACKs had a
 plot twist: this unit is the **resistive** 2432S024 variant — there is no
 CST820 on the board. Touch is an **XPT2046 on the shared display SPI bus**
-(CS 33, PENIRQ 36), now configured inside `include/LGFX_ESP32_2432S024C.hpp`
+(CS 33, PENIRQ 36), now configured inside `include/LGFX_ESP32_2432S024.hpp`
 with on-device measured calibration; `TouchService` polls it via LovyanGFX
 (`getTouchRaw`/`convertRawXY`) and feeds the LVGL pointer indev. Tap counter
 verified on hardware. Full discovery trail: `.superpowers/sdd/progress.md`;
@@ -80,7 +80,7 @@ corrected pin table.
 - **Display:** ILI9341-class landscape-native clone, 320×240, on HSPI.
   **SD card** is on a separate bus (VSPI, CS 5).
 - **Touch:** XPT2046 resistive, shared display SPI (CS 33, PENIRQ 36) —
-  working; config + calibration in `include/LGFX_ESP32_2432S024C.hpp`.
+  working; config + calibration in `include/LGFX_ESP32_2432S024.hpp`.
 
 ## Toolchain
 
@@ -104,7 +104,7 @@ parsing), ESP32-A2DP + arduino-audio-tools/libhelix (Bluetooth MP3 audio).
 ```
 platformio.ini                          PlatformIO project + deps
 src/main.cpp                            diagnostic bring-up sketch (throwaway)
-include/LGFX_ESP32_2432S024C.hpp        LovyanGFX board config (the real deliverable so far)
+include/LGFX_ESP32_2432S024.hpp        LovyanGFX board config (the real deliverable so far)
 docs/DISPLAY.md                         display essentials for app development — read this first
 ```
 

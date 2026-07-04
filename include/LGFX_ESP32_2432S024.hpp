@@ -1,7 +1,7 @@
 // LovyanGFX display + touch config for the ESP32-2432S024 ("Cheap Yellow
-// Display", 2.4"). Filename says S024C, but Task 6 diagnostics proved this
-// unit is the RESISTIVE variant: XPT2046 on the shared display SPI bus, NO
-// CST820 (docs/VENDOR-NOTES.md, .superpowers/sdd/progress.md).
+// Display", 2.4"). Task 6 diagnostics proved this unit is the RESISTIVE
+// variant: XPT2046 on the shared display SPI bus, NO CST820
+// (docs/VENDOR-NOTES.md, .superpowers/sdd/progress.md).
 //
 // Pins per the vendor schematic (reference/2.4inch_ESP32-2432S024/5-Schematic):
 //   Display: ILI9341-class over HSPI — SCLK 14, MOSI 13, MISO 12, CS 15, DC 2

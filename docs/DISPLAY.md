@@ -1,7 +1,7 @@
 # Display — the essentials
 
 Everything apps need to know to render on the danios device.
-Config lives in `include/LGFX_ESP32_2432S024C.hpp` (LovyanGFX). Don't re-derive it.
+Config lives in `include/LGFX_ESP32_2432S024.hpp` (LovyanGFX). Don't re-derive it.
 
 ## The one thing that matters
 
