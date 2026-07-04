@@ -41,8 +41,8 @@ bool TouchService::readTouch(int16_t& screen_x, int16_t& screen_y,
 void TouchService::readCb(lv_indev_drv_t* drv, lv_indev_data_t* data) {
   auto* self = static_cast<TouchService*>(drv->user_data);
   int16_t sx = 0, sy = 0, rx = 0, ry = 0;
-  const bool pressed = self->readTouch(sx, sy, rx, ry);
-  if (pressed) {
+  const bool sampled = self->readTouch(sx, sy, rx, ry);
+  if (sampled) {
     self->lastX_ = sx;
     self->lastY_ = sy;
     if (!self->wasPressed_) {
@@ -51,6 +51,7 @@ void TouchService::readCb(lv_indev_drv_t* drv, lv_indev_data_t* data) {
       Serial.printf("[touch] raw=(%d,%d) screen=(%d,%d)\n", rx, ry, sx, sy);
     }
   }
+  const bool pressed = self->debounce_.update(sampled);
   self->wasPressed_ = pressed;
   data->point.x = self->lastX_;  // keep last point on release (LVGL v8 rule)
   data->point.y = self->lastY_;

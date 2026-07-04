@@ -11,6 +11,7 @@
 #include <lvgl.h>
 
 #include "LGFX_ESP32_2432S024C.hpp"
+#include "press_debounce.h"
 
 class TouchService {
 public:
@@ -30,4 +31,7 @@ private:
   int16_t lastX_ = 0;  // LVGL wants the last point retained on release
   int16_t lastY_ = 0;
   bool wasPressed_ = false;
+  // The XPT2046 filter can reject one sample mid-press; without this, LVGL
+  // sees release+repress and fires CLICKED twice per physical tap.
+  PressDebounce debounce_;
 };
