@@ -5,6 +5,7 @@
 #include <lvgl.h>
 
 #include "apps/StubApp.h"
+#include "apps/app_catalog.h"
 #include "apps/settings/SettingsApp.h"
 #include "core/Launcher.h"
 #include "core/StatusBar.h"
@@ -17,11 +18,12 @@ static StatusBar statusBar;
 static Launcher launcher(statusBar);
 
 // Grid order = registration order (roadmap §4.5); ids pinned by App::id() docs.
-static StubApp weatherStub("weather", "Weather");
-static StubApp musicStub("music", "Music");
-static StubApp calcStub("calc", "Calc");
-static StubApp oracleStub("oracle", "Oracle");
-static StubApp petStub("pet", "Pet");
+// Names + icons are edited in src/apps/app_catalog.h, never here.
+static StubApp weatherStub("weather", catalog::kWeather);
+static StubApp musicStub("music", catalog::kMusic);
+static StubApp calcStub("calc", catalog::kCalc);
+static StubApp oracleStub("oracle", catalog::kOracle);
+static StubApp petStub("pet", catalog::kPet);
 static SettingsApp settingsApp;
 
 void setup() {
