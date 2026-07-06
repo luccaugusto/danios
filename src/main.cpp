@@ -33,6 +33,46 @@ static StubApp oracleStub("oracle", catalog::kOracle);
 static StubApp petStub("pet", catalog::kPet);
 static SettingsApp settingsApp;
 
+// --- Screen sleep (spec 6.4): backlight off after disp.sleep_s of inactivity;
+// --- any touch wakes; the waking tap is swallowed by a full-screen shield.
+static lv_obj_t* g_sleepShield = nullptr;
+static bool g_screenAsleep = false;
+
+static void sleepShieldEvent(lv_event_t* e) {
+  const lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_PRESSED) {
+    // Light up while the finger is still down.
+    displayService.setBrightness(
+        static_cast<uint8_t>(settings.getU32("disp.bright", 160)));
+  } else if (code == LV_EVENT_RELEASED) {
+    lv_obj_del_async(g_sleepShield);  // safe self-delete from own handler
+    g_sleepShield = nullptr;
+    g_screenAsleep = false;
+  }
+}
+
+static void sleepTick() {
+  static uint32_t lastCheck = 0;
+  const uint32_t now = millis();
+  if (now - lastCheck < 500) return;  // throttle: check twice a second
+  lastCheck = now;
+
+  if (g_screenAsleep) return;
+  const uint32_t timeoutS = settings.getU32("disp.sleep_s", 60);
+  if (timeoutS == 0) return;  // 0 = never sleep
+
+  if (lv_disp_get_inactive_time(NULL) >= timeoutS * 1000u) {
+    g_sleepShield = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(g_sleepShield);  // fully transparent
+    lv_obj_set_size(g_sleepShield, LV_PCT(100), LV_PCT(100));
+    lv_obj_add_flag(g_sleepShield, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(g_sleepShield, sleepShieldEvent, LV_EVENT_PRESSED, nullptr);
+    lv_obj_add_event_cb(g_sleepShield, sleepShieldEvent, LV_EVENT_RELEASED, nullptr);
+    displayService.setBrightness(0);  // backlight off — display asleep
+    g_screenAsleep = true;
+  }
+}
+
 // SD-missing error helper (LVGL v8 msgbox with a nullptr parent is created on
 // the top layer and is modal, so it covers the launcher until dismissed).
 static void sdErrorMsgboxCb(lv_event_t* e) {
@@ -96,5 +136,6 @@ void setup() {
 void loop() {
   displayService.tick();     // F1 API: LVGL tick + lv_timer_handler
   launcher.tick(millis());   // forwards to the active app
+  sleepTick();
   delay(5);
 }
