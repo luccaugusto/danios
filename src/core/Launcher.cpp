@@ -127,6 +127,8 @@ void Launcher::rebuildGrid() {
     lv_obj_t* btn = lv_btn_create(cell);
     lv_obj_set_size(btn, kIconSize, kIconSize);
     lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, 8);
+    // Badge overflows the button; don't clip it.
+    lv_obj_add_flag(btn, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     if (app->iconPath() != nullptr) {
       // F3+: hand-drawn icon from SD via the LVGL FS driver (drive 'S').
       lv_obj_t* img = lv_img_create(btn);
@@ -156,6 +158,8 @@ void Launcher::rebuildGrid() {
     lv_obj_set_style_bg_color(badge, lv_color_hex(0xE53935), 0);
     lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, 0);
     lv_obj_align(badge, LV_ALIGN_TOP_RIGHT, 4, -4);
+    // Don't steal taps meant for the icon underneath it.
+    lv_obj_clear_flag(badge, LV_OBJ_FLAG_CLICKABLE);
     if (!model_.badgeAtGrid(g)) lv_obj_add_flag(badge, LV_OBJ_FLAG_HIDDEN);
     badges_.push_back(badge);
 
