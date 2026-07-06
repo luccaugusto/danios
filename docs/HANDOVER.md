@@ -1,8 +1,12 @@
 # danios — Handover / Progress Notes
 
-**Last updated:** 2026-07-04 (F1 closed — LVGL + touch verified on hardware)
-**Phase:** Foundation. **F1 (LVGL + touch) is DONE.** Next: **F2 — launcher**
-([`docs/superpowers/plans/2026-07-03-foundation-2-launcher.md`](superpowers/plans/2026-07-03-foundation-2-launcher.md)).
+**Last updated:** 2026-07-06 (F2 closed — launcher, status bar, settings shell
+live on device)
+**Phase:** Foundation. **F1 (LVGL + touch) and F2 (launcher) are DONE.** Next:
+the **settings phase — F3 → F4 → F5** — start from
+[`docs/HANDOVER-settings.md`](HANDOVER-settings.md). Per-app requirement
+extracts (one file per app) live in
+[`docs/superpowers/specs/apps/`](superpowers/specs/apps/).
 
 Full product design lives in
 [`docs/superpowers/specs/2026-06-03-esp32-gift-device-design.md`](superpowers/specs/2026-06-03-esp32-gift-device-design.md);
@@ -33,11 +37,18 @@ closed out with a whole-branch review (findings fixed or waived — see the
   F2's launcher replaces.
 - Host tests: `pio test -e native` runs `test/test_press_debounce`.
 
-### What F2 starts from
+F2 then delivered the app framework on top of it, all live on hardware:
+`src/core/App.h` (the pinned app interface), `Launcher` (grid of six icons —
+5 stubs + Settings — lifecycle, back bar, badge + enabled plumbing),
+`StatusBar`, the Settings shell (`src/apps/settings/SettingsApp.{h,cpp}`),
+and `src/apps/app_catalog.h` — the **one place to edit an app's launcher name
+or icon path** (apps' `title()`/`iconPath()` read from it).
 
-Launcher plan is written (link above). It replaces the smoke screen with the
-home screen + app framework. Everything it needs (flush path, indev, tick
-loop) is proven; render at 240×320 portrait per `docs/DISPLAY.md`.
+### What the settings phase (F3–F5) starts from
+
+Everything above is proven; SD, NVS, WiFi, time, and Bluetooth are untouched.
+The three plans are written — execution order, gotchas, and definition of done
+are in [`HANDOVER-settings.md`](HANDOVER-settings.md).
 
 ---
 
@@ -111,7 +122,10 @@ ESP32-A2DP + arduino-audio-tools/libhelix (Bluetooth MP3 audio).
 
 ```
 platformio.ini                         PlatformIO project + deps (envs: cyd, native)
-src/main.cpp                           F1 smoke screen (replaced by F2 launcher)
+src/main.cpp                           boot flow + main loop (launcher wired)
+src/core/                              App.h, Launcher, StatusBar (F2)
+src/apps/app_catalog.h                 EDIT HERE: app launcher names + icon paths
+src/apps/settings/                     Settings shell (sections arrive F3-F5)
 src/services/DisplayService.{h,cpp}    LGFX + LVGL display driver glue
 src/services/TouchService.{h,cpp}      XPT2046 -> LVGL pointer indev
 lib/press_debounce/                    touch release debounce (native-tested)
