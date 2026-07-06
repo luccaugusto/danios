@@ -7,7 +7,7 @@
 namespace {
 SettingsApp* g_self = nullptr;  // single instance, owned by main.cpp
 
-// Tasks 8 and 9 extend this array and the switch in showSection.
+// F4/F5/A3 sections append here and to the switch in showSection.
 const char* kSectionNames[] = {"Tela", "Unidades", "Sobre"};
 constexpr int kSectionCount =
     static_cast<int>(sizeof(kSectionNames) / sizeof(kSectionNames[0]));
