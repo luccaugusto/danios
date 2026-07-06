@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!--
+    Single filled gear (engrenagem), centered in a 64x64 viewBox, transparent
+    background. Geometry: 8 trapezoidal teeth around a root circle (r=16),
+    tapering from a 20 degree base to a 12 degree flat tip (r=26), plus a
+    circular center hole (r=7) cut via fill-rule=evenodd — real transparency,
+    not a colored disc. No strokes, no gradients, no text.
+
+    Path data was generated from explicit trapezoid/arc math (center (32,32),
+    8-fold symmetry, 45 degree period) rather than hand-drawn, so rsvg-convert
+    renders it exactly as specified. See assets/icons/svg_to_lvgl_bin.py for
+    the SVG -> LVGL .bin conversion pipeline (this file itself has no
+    generator dependency at render time — it is a static path).
+  -->
+  <path
+    fill="#5A7DA0"
+    fill-rule="evenodd"
+    d="M 47.76,29.22 L 57.86,29.28 L 57.86,34.72 L 47.76,34.78
+       A 16.00 16.00 0 0 1 45.11,41.18
+       L 52.21,48.36 L 48.36,52.21 L 41.18,45.11
+       A 16.00 16.00 0 0 1 34.78,47.76
+       L 34.72,57.86 L 29.28,57.86 L 29.22,47.76
+       A 16.00 16.00 0 0 1 22.82,45.11
+       L 15.64,52.21 L 11.79,48.36 L 18.89,41.18
+       A 16.00 16.00 0 0 1 16.24,34.78
+       L 6.14,34.72 L 6.14,29.28 L 16.24,29.22
+       A 16.00 16.00 0 0 1 18.89,22.82
+       L 11.79,15.64 L 15.64,11.79 L 22.82,18.89
+       A 16.00 16.00 0 0 1 29.22,16.24
+       L 29.28,6.14 L 34.72,6.14 L 34.78,16.24
+       A 16.00 16.00 0 0 1 41.18,18.89
+       L 48.36,11.79 L 52.21,15.64 L 45.11,22.82
+       A 16.00 16.00 0 0 1 47.76,29.22
+       Z
+       M 39.00,32.00
+       A 7.00 7.00 0 1 0 25.00,32.00
+       A 7.00 7.00 0 1 0 39.00,32.00
+       Z"
+  />
+</svg>
