@@ -38,10 +38,18 @@
 
 /*==================== FONTS ====================*/
 /* Montserrat 14 (default UI text). More sizes cost flash; enable per-plan as
- * UIs need them (F2+ picks its own heading size). */
+ * UIs need them (F2+ picks its own heading size).
+ *
+ * LV_FONT_MONTSERRAT_14 stays on (1) because LVGL's default theme references
+ * it directly. The actual UI default font is montserrat_pt_14 (F3-PT): a
+ * custom-generated 14px Montserrat that adds Latin-1 accented glyphs
+ * (0xA0-0xFF) needed for Portuguese UI text, on top of the same ASCII +
+ * FontAwesome symbol glyphs LVGL's built-in fonts carry. See
+ * src/assets/fonts/montserrat_pt_14.c for the generation command. */
 #define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_20 0
-#define LV_FONT_DEFAULT &lv_font_montserrat_14
+#define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(montserrat_pt_14)
+#define LV_FONT_DEFAULT &montserrat_pt_14
 
 /*==================== WIDGETS ====================*/
 /* v8 enables the core set by default. Extras this device will not use stay
