@@ -35,7 +35,7 @@ void setup() {
   launcher.registerApp(&calcStub);
   launcher.registerApp(&oracleStub);
   launcher.registerApp(&petStub);
-  launcher.registerApp(&settingsApp);  // off-grid; opened via the gear button
+  launcher.registerApp(&settingsApp);  // sixth grid icon
 
   launcher.show();
   Serial.println("danios: launcher up");

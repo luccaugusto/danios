@@ -1,7 +1,6 @@
 #include "core/Launcher.h"
 
 #include <cctype>
-#include <cstring>
 
 namespace {
 constexpr lv_coord_t kCellW = 80;
@@ -16,8 +15,7 @@ constexpr int kIconColorCount = 6;
 Launcher::Launcher(StatusBar& statusBar) : statusBar_(statusBar) {}
 
 void Launcher::registerApp(App* app) {
-  const bool inGrid = std::strcmp(app->id(), "settings") != 0;
-  if (model_.registerApp(app->id(), inGrid) < 0) return;  // duplicate id: ignore
+  if (model_.registerApp(app->id(), /*inGrid=*/true) < 0) return;  // duplicate id: ignore
   apps_.push_back(app);
 }
 
@@ -99,7 +97,7 @@ void Launcher::buildHomeScreen() {
   lv_obj_set_style_bg_color(homeScreen_, lv_color_hex(0x101418), 0);
   lv_obj_set_style_text_color(homeScreen_, lv_color_white(), 0);
 
-  statusBar_.build(homeScreen_, [this] { openApp("settings"); });
+  statusBar_.build(homeScreen_);
 
   gridContainer_ = lv_obj_create(homeScreen_);
   lv_obj_remove_style_all(gridContainer_);

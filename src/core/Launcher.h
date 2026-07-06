@@ -16,7 +16,7 @@ class Launcher {
  public:
   explicit Launcher(StatusBar& statusBar);
 
-  void registerApp(App* app);                     // call order = grid order
+  void registerApp(App* app);                     // call order = grid order; every app gets a grid icon
   void show();                                    // build/refresh home screen
   void openApp(const char* id);                   // radio switch + lifecycle
   void goHome();                                  // apps call this for back/home
