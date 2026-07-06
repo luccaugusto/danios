@@ -1,10 +1,16 @@
 # danios — Handover / Progress Notes
 
-**Last updated:** 2026-07-06 (F2 closed — launcher, status bar, settings shell
-live on device)
-**Phase:** Foundation. **F1 (LVGL + touch) and F2 (launcher) are DONE.** Next:
-the **settings phase — F3 → F4 → F5** — start from
-[`docs/HANDOVER-settings.md`](HANDOVER-settings.md). Per-app requirement
+**Last updated:** 2026-07-06 (F3 closed — SD storage, NVS settings persistence,
+Settings→Tela/Unidades/Sobre, screen sleep, Portuguese UI + custom font, gears
+icon from SD; all E2E-verified on hardware)
+**Phase:** Foundation. **F1 (LVGL + touch), F2 (launcher) and F3 (storage +
+settings) are DONE.** Next: **F4 (WiFi + time) → F5 (Bluetooth audio)** — start
+from [`docs/HANDOVER-settings.md`](HANDOVER-settings.md).
+Note: all user-facing UI is in **Portuguese** (launcher: Clima, Música,
+Calculadora, Oráculo, Bichinho, Configurações). The default LVGL font is the
+custom `montserrat_pt_14` (`src/assets/fonts/`, regen command in its README) —
+UI strings may only use codepoints 0x20-0x7F, 0xA0-0xFF, 0x2022 (no em/en
+dashes). SD-card art is staged in `sd/` (copy its contents to the card root). Per-app requirement
 extracts (one file per app) live in
 [`docs/superpowers/specs/apps/`](superpowers/specs/apps/).
 
