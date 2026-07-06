@@ -76,6 +76,7 @@ void setup() {
   launcher.registerApp(&calcStub);
   launcher.registerApp(&oracleStub);
   launcher.registerApp(&petStub);
+  settingsApp.setDeps(settings, displayService, storage);
   launcher.registerApp(&settingsApp);  // sixth grid icon
 
   if (!sdOk) {
