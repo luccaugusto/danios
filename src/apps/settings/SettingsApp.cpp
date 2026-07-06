@@ -8,7 +8,7 @@ namespace {
 SettingsApp* g_self = nullptr;  // single instance, owned by main.cpp
 
 // Tasks 8 and 9 extend this array and the switch in showSection.
-const char* kSectionNames[] = {"Tela"};
+const char* kSectionNames[] = {"Tela", "Unidades"};
 constexpr int kSectionCount =
     static_cast<int>(sizeof(kSectionNames) / sizeof(kSectionNames[0]));
 }  // namespace
@@ -64,6 +64,9 @@ void SettingsApp::showSection(int idx) {
   switch (idx) {
     case 0:
       buildDisplaySection(body, *store_, *display_);
+      break;
+    case 1:
+      buildUnitsSection(body, *store_);
       break;
     default:
       break;
