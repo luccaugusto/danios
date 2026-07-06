@@ -2,6 +2,8 @@
 
 #include <cctype>
 
+#include "../services/LvglFs.h"
+
 namespace {
 constexpr lv_coord_t kCellW = 80;
 constexpr lv_coord_t kCellH = 110;
@@ -127,10 +129,12 @@ void Launcher::rebuildGrid() {
     lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, 8);
     // Badge overflows the button; don't clip it.
     lv_obj_add_flag(btn, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
-    if (app->iconPath() != nullptr) {
+    const char* icon = app->iconPath();
+    if (icon && !lvglFsExists(icon)) icon = nullptr;  // missing art -> fallback tile
+    if (icon != nullptr) {
       // F3+: hand-drawn icon from SD via the LVGL FS driver (drive 'S').
       lv_obj_t* img = lv_img_create(btn);
-      lv_img_set_src(img, app->iconPath());
+      lv_img_set_src(img, icon);
       lv_obj_center(img);
     } else {
       // Fallback: colored rounded box + first letter (art/SD arrive in F3).
