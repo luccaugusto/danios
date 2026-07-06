@@ -29,6 +29,15 @@ class LauncherModel {
   const std::string& idAtGrid(int gridIndex) const;
   GridSlot slotOf(int gridIndex) const;
 
+  // Badge (red dot) and enabled (greyed icon) bookkeeping. Setters return
+  // false when the id is unknown. Defaults: badge=false, enabled=true.
+  bool setBadge(const std::string& id, bool on);
+  bool badgeAtGrid(int gridIndex) const;
+  bool setEnabled(const std::string& id, bool en);
+  bool enabledAtGrid(int gridIndex) const;
+  bool enabled(const std::string& id) const;  // unknown id → false
+  bool canOpen(const std::string& id) const;  // known && enabled
+
  private:
   struct Entry {
     std::string id;

@@ -37,3 +37,32 @@ const std::string& LauncherModel::idAtGrid(int gridIndex) const {
 GridSlot LauncherModel::slotOf(int gridIndex) const {
   return GridSlot{gridIndex / columns_, gridIndex % columns_};
 }
+
+bool LauncherModel::setBadge(const std::string& id, bool on) {
+  const int i = indexOf(id);
+  if (i < 0) return false;
+  entries_[static_cast<size_t>(i)].badge = on;
+  return true;
+}
+
+bool LauncherModel::badgeAtGrid(int gridIndex) const {
+  return entries_[static_cast<size_t>(gridToEntry_[static_cast<size_t>(gridIndex)])].badge;
+}
+
+bool LauncherModel::setEnabled(const std::string& id, bool en) {
+  const int i = indexOf(id);
+  if (i < 0) return false;
+  entries_[static_cast<size_t>(i)].enabled = en;
+  return true;
+}
+
+bool LauncherModel::enabledAtGrid(int gridIndex) const {
+  return entries_[static_cast<size_t>(gridToEntry_[static_cast<size_t>(gridIndex)])].enabled;
+}
+
+bool LauncherModel::enabled(const std::string& id) const {
+  const int i = indexOf(id);
+  return i >= 0 && entries_[static_cast<size_t>(i)].enabled;
+}
+
+bool LauncherModel::canOpen(const std::string& id) const { return enabled(id); }
