@@ -1,8 +1,8 @@
 # danios
 
 A small, battery-powered 2.4" touchscreen "app phone" built on an ESP32
-("Cheap Yellow Display"). Home-screen launcher with four apps — **Weather,
-Music, Calculator, Oracle** — plus a Settings screen. Personal gift project.
+("Cheap Yellow Display"). Home-screen launcher with five apps — **Weather,
+Music, Calculator, Oracle, Pet** — plus a Settings screen. Personal gift project.
 
 - **Board:** ESP32-2432S024 (2.4" CYD, **resistive** XPT2046 touch on the shared
   display SPI — not the capacitive C variant; see `docs/hardware.md`).
@@ -82,8 +82,9 @@ pio device list       # should show /dev/ttyUSB0 once the board is plugged in
 /music/*.mp3           ← songs
 /oracle/wisdom.txt     ← one wisdom entry per line
 /art/weather/          ← outfits, condition overlays, backgrounds
-/art/icons/            ← 4 app icons + gear
+/art/icons/            ← 5 app icons + gear
 /art/oracle/           ← oracle frame
+/art/pet/              ← egg/baby/child/teen/adult sprites, food icons, mess icon
 ```
 
 None of this is needed to *start* — the art is hand-drawn later, music and
