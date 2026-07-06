@@ -201,7 +201,7 @@ void Launcher::buildAppScreen() {
 
 void Launcher::showDisabledHint(const char* title) {
   lv_obj_t* mbox = lv_msgbox_create(
-      NULL, title, "Indisponível — insira o cartão SD e reinicie.", NULL, true);
+      NULL, title, "Indisponível - insira o cartão SD e reinicie.", NULL, true);
   lv_obj_set_width(mbox, 220);
   lv_obj_center(mbox);
 }
