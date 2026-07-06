@@ -16,5 +16,5 @@ void SettingsApp::buildUI(lv_obj_t* parent) {
   //
   // Delete the placeholder row below when the first real section lands.
   // ===============================================================
-  lv_list_add_text(list, "No settings yet");
+  lv_list_add_text(list, "Nenhuma configuração ainda");
 }

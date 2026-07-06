@@ -18,10 +18,10 @@ struct AppInfo {
 };
 
 namespace catalog {
-inline constexpr AppInfo kWeather{"Weather", nullptr};
-inline constexpr AppInfo kMusic{"Music", nullptr};
-inline constexpr AppInfo kCalc{"Calc", nullptr};
-inline constexpr AppInfo kOracle{"Oracle", nullptr};
-inline constexpr AppInfo kPet{"Pet", nullptr};
-inline constexpr AppInfo kSettings{"Settings", nullptr};
+inline constexpr AppInfo kWeather{"Clima", nullptr};
+inline constexpr AppInfo kMusic{"Música", nullptr};
+inline constexpr AppInfo kCalc{"Calculadora", nullptr};
+inline constexpr AppInfo kOracle{"Oráculo", nullptr};
+inline constexpr AppInfo kPet{"Bichinho", nullptr};
+inline constexpr AppInfo kSettings{"Configurações", nullptr};
 }  // namespace catalog

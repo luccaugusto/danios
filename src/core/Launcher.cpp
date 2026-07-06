@@ -39,7 +39,7 @@ void Launcher::openApp(const char* id) {
   const bool granted = radioRequest_ ? radioRequest_(mode) : true;
   if (!granted) {
     lv_obj_t* mbox =
-        lv_msgbox_create(NULL, app->title(), "Radio unavailable right now.", NULL, true);
+        lv_msgbox_create(NULL, app->title(), "Rádio indisponível no momento.", NULL, true);
     lv_obj_set_width(mbox, 220);
     lv_obj_center(mbox);
     return;
@@ -201,7 +201,7 @@ void Launcher::buildAppScreen() {
 
 void Launcher::showDisabledHint(const char* title) {
   lv_obj_t* mbox = lv_msgbox_create(
-      NULL, title, "Unavailable — insert the SD card and reboot.", NULL, true);
+      NULL, title, "Indisponível — insira o cartão SD e reinicie.", NULL, true);
   lv_obj_set_width(mbox, 220);
   lv_obj_center(mbox);
 }
