@@ -50,6 +50,7 @@ void RadioManager::stopWiFi() {
   WiFi.disconnect(true /*wifioff*/, true /*eraseap — RAM only, NVS creds are ours*/);
   WiFi.mode(WIFI_OFF);
   esp_wifi_stop();
+  // F5: Bluetooth (~64 KB) may need esp_wifi_deinit() here to free enough SRAM.
 }
 
 // F5: BluetoothAudioService power hooks graft in here. Until then the BT arm

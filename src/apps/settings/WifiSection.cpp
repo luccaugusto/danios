@@ -90,6 +90,10 @@ void scanClicked(lv_event_t*) {
     lv_obj_t* btn = lv_list_add_btn(ui.list, LV_SYMBOL_WIFI, row);
     // The button outlives `nets`; copy the SSID into the button's user data.
     char* owned = static_cast<char*>(lv_mem_alloc(n.ssid.size() + 1));
+    if (!owned) {  // OOM: drop this row cleanly rather than memcpy(NULL, ...)
+      lv_obj_del(btn);
+      continue;
+    }
     memcpy(owned, n.ssid.c_str(), n.ssid.size() + 1);
     lv_obj_add_event_cb(btn, networkClicked, LV_EVENT_CLICKED, owned);
     lv_obj_add_event_cb(
@@ -151,6 +155,7 @@ void buildWifiSection(lv_obj_t* parent, RadioManager& radio,
     setStatus(wifi.isConnected() ? "Conectado " LV_SYMBOL_OK
                                  : "Toque em Buscar para procurar redes");
   } else {
+    lv_obj_add_state(scanBtn, LV_STATE_DISABLED);  // no radio -> no scanning
     setStatus("Rádio indisponível");
   }
 }

@@ -54,7 +54,9 @@ bool TimeService::syncNow() {
     return false;
   }
 
-  bool ok = wifi_.isConnected() || wifi_.connect();
+  // Bounded connect: the boot path is already connected so this only caps the
+  // interactive "Sincronizar agora" wait (avoids a ~15 s UI stall on failure).
+  bool ok = wifi_.isConnected() || wifi_.connect(8000);
   if (ok) {
     const std::string tz = store_.getString("tz", "UTC0");
     configTzTime(tz.c_str(), "pool.ntp.org", "time.nist.gov");
@@ -70,6 +72,10 @@ bool TimeService::syncNow() {
   }
   if (ok) known_ = true;
 
+  // F5: the failed-borrow early-return above does NOT restore prev, and the
+  // BtOn branch below relies on request(Bluetooth) succeeding. Safe in F4 (the
+  // radio never reaches BtOn while BT is stubbed, so prev is only Off/WiFiOn);
+  // revisit this restore path when Bluetooth actually arms in F5.
   // Restore whatever the radio was doing before we borrowed it.
   if (prev == RadioState::Off) radio_.request(RadioMode::None);
   else if (prev == RadioState::BtOn) radio_.request(RadioMode::Bluetooth);
