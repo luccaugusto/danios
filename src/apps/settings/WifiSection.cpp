@@ -154,8 +154,3 @@ void buildWifiSection(lv_obj_t* parent, RadioManager& radio,
     setStatus("Rádio indisponível");
   }
 }
-
-// Temporary stub — Task 7 replaces this when ClockSection.cpp lands.
-void buildClockSection(lv_obj_t* parent, TimeService&) {
-  lv_label_set_text(lv_label_create(parent), "Relógio em breve");
-}
