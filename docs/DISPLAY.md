@@ -40,10 +40,13 @@ top-left with the USB-C port at the bottom. `tft.width()` = 240,
 - Reference configs (Sunton board def, TFT_eSPI setups) are right about
   **pins** but wrong about **orientation** for this clone — they assume
   portrait-native silicon.
-- Touch calibration is **measured and solved** — the min>max corner constants
-  in `include/LGFX_ESP32_2432S024.hpp` map raw readings to rotation-independent
-  panel-native coords, and LovyanGFX's `convertRawXY` applies the active
-  rotation on top. Don't re-measure; don't add manual swap/mirror code.
+- Touch calibration is **measured and solved** — an 8-value corner array
+  captured with LovyanGFX `calibrateTouch` (at rotation 7) and replayed in
+  `DisplayService::begin()` via `setTouchCalibrate()`. This replaced the earlier
+  hand-measured min>max box constants, which mis-scaled the horizontal axis
+  (right-of-centre keys registered ~one key too far right). To re-calibrate,
+  re-run `calibrateTouch` (touch the 4 corner markers) and paste the new array;
+  don't hand-edit constants or add manual swap/mirror code.
 - Chip ID for sanity checks: RDID4 `0xD3` reads zeros (not a real ILI9341);
   RDDID `0x04` = `0x10 0x81 0xD9`.
 
@@ -60,6 +63,9 @@ top-left with the USB-C port at the bottom. `tft.width()` = 240,
   panel's big-endian RGB565 during the SPI write. Consequence: **image assets
   stay standard (non-swapped) RGB565** in the LVGL image converter.
 - Touch: XPT2046 polled through LovyanGFX (`getTouchRaw` + `convertRawXY` —
-  calibration + rotation live in the LGFX config) by
+  rotation lives in the LGFX config, calibration is applied at runtime in
+  `DisplayService::begin()` via `setTouchCalibrate`) by
   `src/services/TouchService.{h,cpp}`, debounced (`lib/press_debounce/`), and
   fed to LVGL as a pointer indev. There is no separate mapping code.
+  `PressDebounce` also drops the resistive panel's offset first-contact sample
+  (`press_settle=2`) so a single tap can't type its target plus a neighbour.

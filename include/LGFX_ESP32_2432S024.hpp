@@ -80,16 +80,13 @@ public:
     }
     {  // XPT2046 resistive touch, sharing the display's HSPI bus.
       auto cfg = _touch.config();
-      // Calibration + axis mapping measured on this unit (2026-07-04 diag,
-      // ledger step 4): raw X grows toward the portrait BOTTOM, raw Y grows
-      // toward the portrait LEFT. min>max is intentional — it inverts that
-      // axis. These corners map raw -> rotation-INDEPENDENT panel-native
-      // 320x240 coords; convertRawXY applies the active rotation on top at
-      // call time, so the constants stay valid if setRotation ever changes.
-      cfg.x_min      = 3680;  // raw X at portrait bottom -> panel x 0
-      cfg.x_max      = 650;   // raw X at portrait top    -> panel x 319
-      cfg.y_min      = 580;   // raw Y at portrait right  -> panel y 0
-      cfg.y_max      = 3430;  // raw Y at portrait left   -> panel y 239
+      // Coordinate calibration is NOT set here. It is applied at runtime by
+      // DisplayService::begin() via setTouchCalibrate(), using an 8-value corner
+      // array measured with LovyanGFX calibrateTouch at rotation 7 — the single
+      // source of truth. (The earlier hand-measured x_min/x_max/y_min/y_max box
+      // constants lived here but mis-scaled the horizontal axis; re-calibrating
+      // per-rotation with the affine is both more accurate and less error-prone
+      // than reasoning about pre-rotation panel-native coords. See docs/DISPLAY.md.)
       cfg.offset_rotation = 0;
       cfg.pin_int    = 36;    // PENIRQ — driver skips SPI traffic when idle
       cfg.bus_shared = true;  // same bus as the panel: pause its transaction

@@ -52,11 +52,15 @@ battery circuit (IP5603).
 | PENIRQ | 36 (low while pressed; 10k pull-up on board) |
 
 - LovyanGFX `Touch_XPT2046`, `spi_host = SPI2_HOST`, `bus_shared = true`, 1 MHz.
-- Measured calibration (raw 12-bit, portrait USB-down): x_min=3680, x_max=650,
-  y_min=580, y_max=3430 (min>max inverts the axis). Raw X grows toward screen
-  bottom, raw Y toward screen left. The corners map raw → rotation-independent
-  panel-native coords; `convertRawXY` applies the active rotation on top.
-- Resistive = needs firm/pointed presses; no multitouch, no gestures.
+- Calibration (raw 12-bit, portrait USB-down): an 8-value corner array captured
+  with `calibrateTouch` at rotation 7, applied in `DisplayService::begin()` via
+  `setTouchCalibrate`. Replaced the earlier hand-measured x_min/x_max/y_min/y_max
+  box constants, which mis-scaled the horizontal axis (right-side taps drifted
+  ~one key right). To re-calibrate, re-run `calibrateTouch` and paste the array.
+- Resistive = needs firm/pointed presses; no multitouch, no gestures. The first
+  contact sample reads offset (down-and-right) until pressure settles, so
+  `PressDebounce` requires 2 consecutive samples before reporting a press
+  (`press_settle=2`) — otherwise one tap can register its target plus a neighbour.
 
 ### microSD — separate bus (VSPI defaults; per [A]/[B], not yet exercised — F3 proves it)
 

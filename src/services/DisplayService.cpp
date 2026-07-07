@@ -3,6 +3,13 @@
 void DisplayService::begin() {
   tft_.init();
   tft_.setRotation(7);    // portrait, USB-C down (240x320) — docs/DISPLAY.md
+  // Touch calibration measured on THIS unit with LovyanGFX calibrateTouch at
+  // rotation 7 (docs/DISPLAY.md). Supersedes the earlier hand-measured min/max
+  // box constants, which mis-scaled the horizontal axis so right-of-centre keys
+  // registered one key too far right. 8 values = raw ADC at the 4 screen
+  // corners; setTouchCalibrate builds the affine and MUST run after setRotation.
+  static uint16_t kTouchCal[8] = {3830, 319, 3876, 3631, 724, 181, 521, 3482};
+  tft_.setTouchCalibrate(kTouchCal);
   tft_.setBrightness(160);
 
   lv_init();

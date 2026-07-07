@@ -66,6 +66,34 @@ static void test_stays_released_while_idle() {
   }
 }
 
+// Press-settle (2nd ctor arg): the resistive XPT2046's FIRST contact sample
+// reads offset (pressure still building); requiring N consecutive hits before
+// reporting PRESSED discards that offset sample so LVGL only sees settled
+// coords. Default settle=1 keeps the immediate-press behavior above.
+static void test_press_settle_requires_two_consecutive_hits() {
+  PressDebounce d(1, 2);              // release_hold=1, press_settle=2
+  TEST_ASSERT_FALSE(d.update(true));  // first (offset) sample: not pressed yet
+  TEST_ASSERT_TRUE(d.update(true));   // second sample: settled -> pressed
+}
+
+static void test_press_settle_resets_on_dropout_before_settled() {
+  PressDebounce d(1, 2);
+  TEST_ASSERT_FALSE(d.update(true));   // 1st hit
+  TEST_ASSERT_FALSE(d.update(false));  // blip before settling -> restart count
+  TEST_ASSERT_FALSE(d.update(true));   // counts as 1st hit again
+  TEST_ASSERT_TRUE(d.update(true));    // now settled
+}
+
+static void test_press_settle_then_release_hold_independent() {
+  PressDebounce d(1, 2);
+  d.update(true);
+  TEST_ASSERT_TRUE(d.update(true));    // settled + pressed
+  TEST_ASSERT_TRUE(d.update(false));   // one mid-press dropout still tolerated
+  TEST_ASSERT_TRUE(d.update(true));
+  TEST_ASSERT_TRUE(d.update(false));   // fresh single miss...
+  TEST_ASSERT_FALSE(d.update(false));  // ...second consecutive miss releases
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_starts_released);
@@ -76,5 +104,8 @@ int main(int, char**) {
   RUN_TEST(test_dropout_counter_resets_on_press);
   RUN_TEST(test_zero_hold_releases_on_first_miss);
   RUN_TEST(test_stays_released_while_idle);
+  RUN_TEST(test_press_settle_requires_two_consecutive_hits);
+  RUN_TEST(test_press_settle_resets_on_dropout_before_settled);
+  RUN_TEST(test_press_settle_then_release_hold_independent);
   return UNITY_END();
 }

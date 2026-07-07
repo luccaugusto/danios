@@ -1,24 +1,33 @@
 // Debounce for a polled touch signal (pure std-C++ — native-testable).
 //
-// A press is reported immediately; a release is reported only after more
-// than `hold_polls` consecutive empty polls. Rationale: the XPT2046 driver's
-// median/pressure filter can reject one sample mid-press, and reporting that
-// to LVGL as release+repress fires CLICKED twice per physical tap. At the
-// ~30 ms LVGL indev period the default (1 held poll) adds at most ~60 ms of
-// release latency.
+// Two edges, two guards:
+//  - release_hold: a release is reported only after more than `release_hold`
+//    consecutive empty polls. The XPT2046 driver's median/pressure filter can
+//    reject one sample mid-press; reporting that to LVGL as release+repress
+//    fires CLICKED twice per physical tap.
+//  - press_settle: a press is reported only after `press_settle` consecutive
+//    touched polls. The resistive panel's FIRST contact sample reads offset
+//    (down-and-right) while pressure is still building, then settles over the
+//    next poll or two; requiring 2 hits discards that offset sample so LVGL
+//    only ever sees a settled coordinate. Default 1 = report immediately.
+//
+// At the ~30 ms LVGL indev period each held poll adds ~30 ms of latency.
 #pragma once
 
 #include <cstdint>
 
 class PressDebounce {
 public:
-  explicit PressDebounce(uint8_t hold_polls = 1) : hold_(hold_polls) {}
+  explicit PressDebounce(uint8_t release_hold = 1, uint8_t press_settle = 1)
+      : release_hold_(release_hold), press_settle_(press_settle) {}
 
   // Feed one raw poll result; returns the debounced pressed state.
   bool update(bool raw_pressed);
 
 private:
-  uint8_t hold_;
+  uint8_t release_hold_;
+  uint8_t press_settle_;
   uint8_t misses_ = 0;
+  uint8_t hits_ = 0;
   bool pressed_ = false;
 };

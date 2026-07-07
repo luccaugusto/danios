@@ -31,7 +31,11 @@ private:
   int16_t lastX_ = 0;  // LVGL wants the last point retained on release
   int16_t lastY_ = 0;
   bool wasPressed_ = false;
-  // The XPT2046 filter can reject one sample mid-press; without this, LVGL
-  // sees release+repress and fires CLICKED twice per physical tap.
-  PressDebounce debounce_;
+  // release_hold=1: the XPT2046 filter can reject one sample mid-press;
+  //   without this LVGL sees release+repress and fires CLICKED twice per tap.
+  // press_settle=2: the resistive panel's first contact sample reads offset
+  //   (down-and-right) before pressure settles; requiring a second consecutive
+  //   sample discards it so the PRESSED coordinate LVGL sees is the settled
+  //   one — fixes ghost keystrokes on the keyboard and the whole-UI offset.
+  PressDebounce debounce_{1, 2};
 };
