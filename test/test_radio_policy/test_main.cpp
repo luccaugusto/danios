@@ -1,6 +1,6 @@
 #include <unity.h>
 
-#include <radio_policy/radio_policy.h>
+#include <radio_policy.h>
 
 void setUp() {}
 void tearDown() {}
