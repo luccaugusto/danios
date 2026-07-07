@@ -10,6 +10,7 @@
 #include "core/Launcher.h"
 #include "core/StatusBar.h"
 #include "core/Version.h"
+#include "services/BluetoothAudioService.h"
 #include "services/DisplayService.h"  // F1 API
 #include "services/LvglFs.h"
 #include "services/RadioManager.h"
@@ -29,6 +30,7 @@ StorageService storage;     // sole owner (roadmap 4.9)
 static RadioManager radioManager;  // sole owner of radio power (roadmap 4.6)
 static WiFiService wifiService(settings);
 static TimeService timeService(radioManager, wifiService, settings);
+static BluetoothAudioService btAudio(settings);
 
 // Grid order = registration order (roadmap §4.5); ids pinned by App::id() docs.
 // Names + icons are edited in src/apps/app_catalog.h, never here.
