@@ -137,6 +137,23 @@ void setup() {
     launcher.setAppEnabled("oracle", false);
   }
 
+  // Boot flow step 4 (spec §3.4): if a network is saved, bring WiFi up briefly
+  // to sync time, prefetch weather, then drop the radio. Bounded ~23 s worst
+  // case (8 s connect + 15 s NTP); a splash label keeps the screen honest.
+  if (wifiService.hasCredentials()) {
+    lv_obj_t* splash = lv_label_create(lv_scr_act());
+    lv_label_set_text(splash, "Conectando" LV_SYMBOL_WIFI);
+    lv_obj_center(splash);
+    lv_refr_now(nullptr);
+
+    if (radioManager.request(RadioMode::WiFi) && wifiService.connect(8000)) {
+      timeService.syncNow();  // already WiFiOn -> no radio dance inside
+      // A3: weather boot prefetch hook
+    }
+    radioManager.request(RadioMode::None);
+    lv_obj_del(splash);
+  }
+
   launcher.show();
   if (!sdOk) showSdMissingError();  // modal on top of the launcher, dismissable
   Serial.println("danios: launcher up");
@@ -146,5 +163,20 @@ void loop() {
   displayService.tick();     // F1 API: LVGL tick + lv_timer_handler
   launcher.tick(millis());   // forwards to the active app
   sleepTick();
+
+  // Status bar: clock + radio glyph, once per second (spec §3.3).
+  static uint32_t lastStatus = 0;
+  if (millis() - lastStatus >= 1000) {
+    lastStatus = millis();
+    char clock[6];
+    timeService.hhmm(clock);
+    statusBar.setClockText(clock);
+    switch (radioManager.current()) {
+      case RadioState::WiFiOn: statusBar.setRadio(RadioMode::WiFi); break;
+      case RadioState::BtOn:   statusBar.setRadio(RadioMode::Bluetooth); break;
+      default:                 statusBar.setRadio(RadioMode::None); break;
+    }
+  }
+
   delay(5);
 }
