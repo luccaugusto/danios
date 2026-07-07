@@ -123,7 +123,8 @@ void setup() {
   launcher.registerApp(&calcStub);
   launcher.registerApp(&oracleStub);
   launcher.registerApp(&petStub);
-  settingsApp.setDeps(settings, displayService, storage);
+  settingsApp.setDeps(settings, displayService, storage, radioManager,
+                      wifiService, timeService);
   launcher.registerApp(&settingsApp);  // sixth grid icon
   launcher.setRadioRequest([](RadioMode m) { return radioManager.request(m); });
 

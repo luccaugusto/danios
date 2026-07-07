@@ -9,6 +9,9 @@
 
 class DisplayService;
 class StorageService;
+class RadioManager;
+class WiFiService;
+class TimeService;
 
 class SettingsApp : public App {
  public:
@@ -21,7 +24,9 @@ class SettingsApp : public App {
   void onExit() override {}
 
   // F3: dependency injection. Call once from main.cpp, before registerApp.
-  void setDeps(ISettingsStore& store, DisplayService& display, StorageService& storage);
+  void setDeps(ISettingsStore& store, DisplayService& display,
+               StorageService& storage, RadioManager& radio, WiFiService& wifi,
+               TimeService& time);
 
  private:
   void showMenu();          // the lv_list of sections
@@ -32,5 +37,8 @@ class SettingsApp : public App {
   ISettingsStore* store_ = nullptr;
   DisplayService* display_ = nullptr;
   StorageService* storage_ = nullptr;
+  RadioManager* radio_ = nullptr;
+  WiFiService* wifi_ = nullptr;
+  TimeService* time_ = nullptr;
   lv_obj_t* root_ = nullptr;
 };

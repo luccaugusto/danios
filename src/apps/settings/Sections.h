@@ -7,7 +7,12 @@
 
 class DisplayService;
 class StorageService;
+class RadioManager;   // Task 3
+class WiFiService;    // Task 4
+class TimeService;    // Task 5
 
 void buildDisplaySection(lv_obj_t* parent, ISettingsStore& store, DisplayService& display);
 void buildUnitsSection(lv_obj_t* parent, ISettingsStore& store);      // Task 8
 void buildAboutSection(lv_obj_t* parent, StorageService& storage);    // Task 9
+void buildWifiSection(lv_obj_t* parent, RadioManager& radio, WiFiService& wifi);
+void buildClockSection(lv_obj_t* parent, TimeService& time);  // Task 7
