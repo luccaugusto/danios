@@ -12,6 +12,7 @@
 #include "core/Version.h"
 #include "services/DisplayService.h"  // F1 API
 #include "services/LvglFs.h"
+#include "services/RadioManager.h"
 #include "services/SettingsService.h"
 #include "services/StorageService.h"
 #include "services/TouchService.h"    // F1 API
@@ -23,6 +24,7 @@ static Launcher launcher(statusBar);
 
 SettingsService settings;   // sole owner (roadmap 4.4); pass as ISettingsStore&
 StorageService storage;     // sole owner (roadmap 4.9)
+static RadioManager radioManager;  // sole owner of radio power (roadmap 4.6)
 
 // Grid order = registration order (roadmap §4.5); ids pinned by App::id() docs.
 // Names + icons are edited in src/apps/app_catalog.h, never here.
@@ -118,6 +120,7 @@ void setup() {
   launcher.registerApp(&petStub);
   settingsApp.setDeps(settings, displayService, storage);
   launcher.registerApp(&settingsApp);  // sixth grid icon
+  launcher.setRadioRequest([](RadioMode m) { return radioManager.request(m); });
 
   if (!sdOk) {
     // Spec 6.5: SD-dependent apps disabled. Pet is the exception (state in
