@@ -1,5 +1,7 @@
 #include "DisplayService.h"
 
+#include <esp_heap_caps.h>
+
 void DisplayService::begin() {
   tft_.init();
   tft_.setRotation(7);    // portrait, USB-C down (240x320) — docs/DISPLAY.md
@@ -13,6 +15,10 @@ void DisplayService::begin() {
   tft_.setBrightness(160);
 
   lv_init();
+  // DMA-capable internal RAM (no PSRAM on this board). Allocated here rather
+  // than as a static member so the 14.4 KB stays out of dram0_0_seg (see .h).
+  buf1_ = static_cast<lv_color_t*>(
+      heap_caps_malloc(kBufPixels * sizeof(lv_color_t), MALLOC_CAP_DMA));
   lv_disp_draw_buf_init(&drawBuf_, buf1_, nullptr, kBufPixels);
   lv_disp_drv_init(&dispDrv_);
   dispDrv_.hor_res = kHorRes;
