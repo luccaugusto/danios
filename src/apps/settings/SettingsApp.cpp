@@ -8,20 +8,23 @@ namespace {
 SettingsApp* g_self = nullptr;  // single instance, owned by main.cpp
 
 // F4/F5/A3 sections append here and to the switch in showSection.
-const char* kSectionNames[] = {"Tela", "Unidades", "Sobre", "WiFi", "Relógio"};
+const char* kSectionNames[] = {"Tela",  "Unidades", "Sobre",
+                               "WiFi",  "Relógio",  "Bluetooth"};
 constexpr int kSectionCount =
     static_cast<int>(sizeof(kSectionNames) / sizeof(kSectionNames[0]));
 }  // namespace
 
 void SettingsApp::setDeps(ISettingsStore& store, DisplayService& display,
                           StorageService& storage, RadioManager& radio,
-                          WiFiService& wifi, TimeService& time) {
+                          WiFiService& wifi, TimeService& time,
+                          BluetoothAudioService& bt) {
   store_ = &store;
   display_ = &display;
   storage_ = &storage;
   radio_ = &radio;
   wifi_ = &wifi;
   time_ = &time;
+  bt_ = &bt;
 }
 
 void SettingsApp::buildUI(lv_obj_t* parent) {
@@ -80,6 +83,9 @@ void SettingsApp::showSection(int idx) {
       break;
     case 4:
       buildClockSection(body, *time_);  // Task 7
+      break;
+    case 5:
+      buildBluetoothSection(body, *radio_, *bt_);
       break;
     default:
       break;
