@@ -216,5 +216,7 @@ void Launcher::onIconClicked(lv_event_t* e) {
 }
 
 void Launcher::onBackClicked(lv_event_t* e) {
-  static_cast<Launcher*>(lv_event_get_user_data(e))->goHome();
+  auto* self = static_cast<Launcher*>(lv_event_get_user_data(e));
+  if (self->active_ && self->active_->handleBack()) return;  // app stepped up a level
+  self->goHome();
 }

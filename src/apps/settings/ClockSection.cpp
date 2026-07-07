@@ -54,6 +54,18 @@ lv_obj_t* makeRoller(lv_obj_t* parent, int from, int to, int sel) {
   return r;
 }
 
+// A full-width horizontal row for a group of rollers. `main` picks how the
+// rollers spread along it (date row: SPACE_BETWEEN; time row: CENTER).
+lv_obj_t* makeRow(lv_obj_t* parent, lv_flex_align_t main) {
+  lv_obj_t* r = lv_obj_create(parent);
+  lv_obj_set_width(r, LV_PCT(100));
+  lv_obj_set_height(r, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(r, main, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(r, 12, 0);
+  return r;
+}
+
 void applyClicked(lv_event_t*) {
   const LocalDate d{
       static_cast<int16_t>(2026 + lv_roller_get_selected(ui.year)),
@@ -79,21 +91,21 @@ void buildClockSection(lv_obj_t* parent, TimeService& time) {
   lv_obj_add_event_cb(syncBtn, syncClicked, LV_EVENT_CLICKED, nullptr);
 
   lv_obj_t* caption = lv_label_create(parent);
-  lv_label_set_text(caption, "Ajuste manual  (A / M / D / h / m)");
-
-  lv_obj_t* row = lv_obj_create(parent);
-  lv_obj_set_width(row, LV_PCT(100));
-  lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-  lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
-                        LV_FLEX_ALIGN_CENTER);
+  lv_label_set_text(caption, "Ajuste manual  (A/M/D h:m)");
 
   const LocalDate d = time.isTimeKnown() ? time.today() : LocalDate{2026, 7, 3};
   const int mins = time.isTimeKnown() ? time.minutesSinceMidnight() : 720;
-  ui.year = makeRoller(row, 2026, 2045, d.year);
-  ui.month = makeRoller(row, 1, 12, d.month);
-  ui.day = makeRoller(row, 1, 31, d.day);
-  ui.hour = makeRoller(row, 0, 23, mins / 60);
-  ui.minute = makeRoller(row, 0, 59, mins % 60);
+
+  // Split into two rows so the fields fit: year / month / day on top,
+  // hour : minute below.
+  lv_obj_t* dateRow = makeRow(parent, LV_FLEX_ALIGN_SPACE_BETWEEN);
+  ui.year = makeRoller(dateRow, 2026, 2045, d.year);
+  ui.month = makeRoller(dateRow, 1, 12, d.month);
+  ui.day = makeRoller(dateRow, 1, 31, d.day);
+
+  lv_obj_t* timeRow = makeRow(parent, LV_FLEX_ALIGN_CENTER);
+  ui.hour = makeRoller(timeRow, 0, 23, mins / 60);
+  ui.minute = makeRoller(timeRow, 0, 59, mins % 60);
 
   lv_obj_t* applyBtn = lv_btn_create(parent);
   lv_obj_t* applyLbl = lv_label_create(applyBtn);

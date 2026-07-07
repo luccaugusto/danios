@@ -31,7 +31,9 @@ void SettingsApp::buildUI(lv_obj_t* parent) {
 }
 
 void SettingsApp::showMenu() {
+  inSection_ = false;
   lv_obj_clean(root_);
+  lv_obj_set_flex_flow(root_, LV_FLEX_FLOW_COLUMN);
   lv_obj_t* list = lv_list_create(root_);
   lv_obj_set_size(list, LV_PCT(100), LV_PCT(100));
   for (int i = 0; i < kSectionCount; ++i) {
@@ -46,18 +48,16 @@ void SettingsApp::menuClicked(lv_event_t* e) {
       static_cast<int>(reinterpret_cast<intptr_t>(lv_event_get_user_data(e))));
 }
 
-void SettingsApp::backClicked(lv_event_t* /*e*/) {
-  g_self->showMenu();
+bool SettingsApp::handleBack() {
+  if (!inSection_) return false;  // at the menu -> let the Launcher go home
+  showMenu();                     // in a section -> step up to the menu
+  return true;
 }
 
 void SettingsApp::showSection(int idx) {
+  inSection_ = true;
   lv_obj_clean(root_);
   lv_obj_set_flex_flow(root_, LV_FLEX_FLOW_COLUMN);
-
-  lv_obj_t* back = lv_btn_create(root_);
-  lv_obj_t* backLbl = lv_label_create(back);
-  lv_label_set_text(backLbl, LV_SYMBOL_LEFT " Voltar");
-  lv_obj_add_event_cb(back, backClicked, LV_EVENT_CLICKED, nullptr);
 
   lv_obj_t* body = lv_obj_create(root_);
   lv_obj_set_width(body, LV_PCT(100));

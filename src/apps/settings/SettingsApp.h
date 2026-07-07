@@ -22,6 +22,8 @@ class SettingsApp : public App {
   void onEnter() override {}
   void buildUI(lv_obj_t* parent) override;
   void onExit() override {}
+  // In a section: step back to the menu. At the menu: let the Launcher go home.
+  bool handleBack() override;
 
   // F3: dependency injection. Call once from main.cpp, before registerApp.
   void setDeps(ISettingsStore& store, DisplayService& display,
@@ -32,7 +34,6 @@ class SettingsApp : public App {
   void showMenu();          // the lv_list of sections
   void showSection(int idx);
   static void menuClicked(lv_event_t* e);
-  static void backClicked(lv_event_t* e);
 
   ISettingsStore* store_ = nullptr;
   DisplayService* display_ = nullptr;
@@ -41,4 +42,5 @@ class SettingsApp : public App {
   WiFiService* wifi_ = nullptr;
   TimeService* time_ = nullptr;
   lv_obj_t* root_ = nullptr;
+  bool inSection_ = false;  // false = section menu, true = inside a section
 };

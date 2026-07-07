@@ -17,4 +17,7 @@ public:
   virtual void buildUI(lv_obj_t* parent) = 0;    // build widgets into parent
   virtual void onExit() = 0;                     // launcher deletes widgets AFTER this
   virtual void tick(uint32_t now_ms) {}          // called every loop while active
+  // Top-bar back arrow hook: return true if the app consumed "back" (e.g. stepped
+  // up one internal level); false lets the Launcher exit the app to home.
+  virtual bool handleBack() { return false; }
 };
