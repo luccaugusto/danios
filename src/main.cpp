@@ -129,6 +129,7 @@ void setup() {
                       wifiService, timeService);
   launcher.registerApp(&settingsApp);  // sixth grid icon
   launcher.setRadioRequest([](RadioMode m) { return radioManager.request(m); });
+  radioManager.setBluetoothService(&btAudio);
 
   if (!sdOk) {
     // Spec 6.5: SD-dependent apps disabled. Pet is the exception (state in

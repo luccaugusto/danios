@@ -5,6 +5,8 @@
 
 #include "core/App.h"  // RadioMode
 
+class BluetoothAudioService;
+
 class RadioManager {
  public:
   RadioState current() const { return state_; }
@@ -12,6 +14,9 @@ class RadioManager {
   // Executes teardown-then-bringup per planTransition. Returns false if the
   // bringup step fails; the manager then lands in Off (never half-switched).
   bool request(RadioMode mode);
+
+  // F5: wire once from main.cpp. RadioManager drives BT power through this.
+  void setBluetoothService(BluetoothAudioService* bt) { bt_ = bt; }
 
  private:
   bool execute(RadioAction action);
@@ -21,4 +26,5 @@ class RadioManager {
   void stopBt();   // F5 replaces the stub body (no-op until then)
 
   RadioState state_ = RadioState::Off;
+  BluetoothAudioService* bt_ = nullptr;
 };
