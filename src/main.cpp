@@ -15,6 +15,7 @@
 #include "services/RadioManager.h"
 #include "services/SettingsService.h"
 #include "services/StorageService.h"
+#include "services/TimeService.h"
 #include "services/TouchService.h"    // F1 API
 #include "services/WiFiService.h"
 
@@ -27,6 +28,7 @@ SettingsService settings;   // sole owner (roadmap 4.4); pass as ISettingsStore&
 StorageService storage;     // sole owner (roadmap 4.9)
 static RadioManager radioManager;  // sole owner of radio power (roadmap 4.6)
 static WiFiService wifiService(settings);
+static TimeService timeService(radioManager, wifiService, settings);
 
 // Grid order = registration order (roadmap §4.5); ids pinned by App::id() docs.
 // Names + icons are edited in src/apps/app_catalog.h, never here.
@@ -105,6 +107,7 @@ void setup() {
   const bool sdOk = storage.begin();
   // Spec 3.4 step 2: open settings (NVS namespace "danios").
   settings.begin();
+  timeService.begin();  // apply persisted TZ before anything reads the clock
 
   displayService.begin();  // F1 API: panel + LVGL + flush binding
   touchService.begin(&displayService.gfx());  // F1 API: XPT2046 -> LVGL indev
