@@ -7,6 +7,7 @@
 #include <esp_bt_main.h>
 #include <esp_gap_bt_api.h>
 
+#include <atomic>
 #include <cstring>
 
 namespace {
@@ -26,8 +27,14 @@ BluetoothA2DPSource& a2dp() {
 }
 
 // Trampoline state (single service instance; BT callbacks are C-style).
-AudioSourceFn g_sourceFn = nullptr;
-void* g_sourceCtx = nullptr;
+// Atomic: setSource() runs on the main/Arduino task, frameBridge() runs on
+// the A2DP library's own FreeRTOS task (pinned to a possibly different
+// core). Plain globals would let frameBridge observe a mismatched fn/ctx
+// pair (e.g. a stale toneSource fn with an already-nulled ctx), which
+// null-derefs. See setSource()/frameBridge() for the publish/consume order
+// that prevents that.
+std::atomic<AudioSourceFn> g_sourceFn{nullptr};
+std::atomic<void*> g_sourceCtx{nullptr};
 std::vector<BtDevice>* g_scanOut = nullptr;
 uint8_t g_targetAddr[6] = {};
 bool g_haveTarget = false;
@@ -36,8 +43,15 @@ int32_t frameBridge(Frame* frames, int32_t count) {
   // Frame is {int16_t channel1, channel2} — memory-compatible with the
   // interleaved stereo buffer AudioSourceFn expects.
   int16_t* buf = reinterpret_cast<int16_t*>(frames);
+  // Acquire-load fn first, then ctx: the acquire load of a non-null fn
+  // synchronizes-with setSource()'s release-store of fn, so the ctx we
+  // read here is guaranteed to be the one that was published alongside it.
+  AudioSourceFn fn = g_sourceFn.load(std::memory_order_acquire);
+  void* ctx = g_sourceCtx.load(std::memory_order_relaxed);
   int32_t written = 0;
-  if (g_sourceFn != nullptr) written = g_sourceFn(buf, count, g_sourceCtx);
+  if (fn != nullptr) written = fn(buf, count, ctx);
+  if (written < 0) written = 0;
+  if (written > count) written = count;
   if (written < count) {
     memset(buf + written * 2, 0, static_cast<size_t>(count - written) * 4);
   }
@@ -89,10 +103,25 @@ bool BluetoothAudioService::powerOn() {
 
 void BluetoothAudioService::powerOff() {
   g_sourceFn = nullptr;
+  // Tear down in the reverse order of powerOn()'s init (A2DP profile ->
+  // bluedroid host stack -> controller). Skipping the bluedroid steps used
+  // to leave esp_bluedroid_get_status() == ENABLED after powerOff(), which
+  // made powerOn()'s "if not enabled/init'd" guards no-op on the next
+  // session and left bluedroid unattached to the freshly re-initialized
+  // controller (Bluetooth dead on the 2nd+ session). NEVER call
+  // esp_bt_controller_mem_release() here — release_memory stays false
+  // throughout, per the header's contract (one-way; Music re-enters
+  // Bluetooth every session).
   // Only tear down A2DP if it was ever brought up — calling end() would
   // otherwise lazily construct the (heap-allocated) source needlessly.
   if (g_a2dpPtr != nullptr) {
     g_a2dpPtr->end(false);  // false: keep controller memory — BT restarts later
+  }
+  if (esp_bluedroid_get_status() == ESP_BLUEDROID_STATUS_ENABLED) {
+    esp_bluedroid_disable();
+  }
+  if (esp_bluedroid_get_status() != ESP_BLUEDROID_STATUS_UNINITIALIZED) {
+    esp_bluedroid_deinit();
   }
   if (btStarted()) btStop();
   Serial.printf("[bt] off, heap=%u\n", esp_get_free_heap_size());
@@ -145,8 +174,22 @@ bool BluetoothAudioService::isConnected() const {
 }
 
 void BluetoothAudioService::setSource(AudioSourceFn fn, void* ctx) {
-  g_sourceCtx = ctx;
-  g_sourceFn = fn;
+  // Publish order prevents frameBridge (running on the A2DP library's own
+  // task, possibly a different core) from ever observing an fn paired with
+  // the wrong ctx:
+  //   1. null fn first (release) — no reader will call the fn while it's
+  //      null, so it's safe to change ctx underneath it.
+  //   2. write ctx (relaxed) — safe: fn is null, nothing reads ctx yet.
+  //   3. write the real fn last (release), if any — only now can a reader
+  //      see a non-null fn, and by then ctx already matches it. The
+  //      acquire-load in frameBridge synchronizes-with this store.
+  // Disable (fn == nullptr) falls out of steps 1-2 alone: fn stays null,
+  // ctx is nulled to match.
+  g_sourceFn.store(nullptr, std::memory_order_release);
+  g_sourceCtx.store(ctx, std::memory_order_relaxed);
+  if (fn != nullptr) {
+    g_sourceFn.store(fn, std::memory_order_release);
+  }
 }
 
 std::string BluetoothAudioService::pairedAddr() const {
