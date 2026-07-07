@@ -29,6 +29,10 @@ class TimeService {
   void setTimezone(const std::string& posixTz);  // persists "tz" + applies
 
  private:
+  // GeoIP lookup -> POSIX TZ string. Assumes WiFi is already connected
+  // (only called from inside syncNow). false on any HTTP/parse failure.
+  bool detectTimezone(std::string& out);
+
   RadioManager& radio_;
   WiFiService& wifi_;
   ISettingsStore& store_;
