@@ -120,9 +120,9 @@ WiFi/NTP/weather fetch, NVS settings, Bluetooth A2DP audio experiments.
 ### PlatformIO
 
 The real config is `platformio.ini` (env `cyd`, pinned `espressif32@7.0.1` =
-Arduino core 2.0.x — the verified combo for A2DP source; `huge_app.csv`
-partitions because LVGL+A2DP+MP3 exceeds the default app slot; host tests in
-env `native`).
+Arduino-ESP32 core 3.x / IDF 5.x — **A2DP source verified on this combo,
+F5 spike 2026-07-07**; `huge_app.csv` partitions because LVGL+A2DP+MP3
+exceeds the default app slot; host tests in env `native`).
 
 ### Libraries (checked on PlatformIO registry 2026-07-03)
 
@@ -131,13 +131,18 @@ env `native`).
 | LovyanGFX | `lovyan03/LovyanGFX` | 1.2.24 |
 | LVGL | `lvgl/lvgl` | 9.5.0 latest; last v8 is **8.4.0** (what we use) |
 | ArduinoJson | `bblanchon/ArduinoJson` | 7.4.3 |
-| ESP32-A2DP | `https://github.com/pschatzmann/ESP32-A2DP.git#v1.8.11` | not on registry |
+| ESP32-A2DP | `https://github.com/pschatzmann/ESP32-A2DP.git#b559fb15` (main) | v1.8.11 fails on core 3.x — see note |
 | audio-tools | `https://github.com/pschatzmann/arduino-audio-tools.git#v1.2.5` | not on registry |
 | helix MP3 | `https://github.com/pschatzmann/arduino-libhelix.git` | separate dep, required for MP3 |
 
-A2DP notes: needs Bluetooth Classic → plain ESP32 only (✓ both boards). With
-Arduino core 3.x the legacy I2S API is gone (`-DA2DP_I2S_AUDIOTOOLS=1` +
-pioarduino fork needed) — staying on official `espressif32` (core 2.0.x) avoids all that.
+A2DP notes: needs Bluetooth Classic → plain ESP32 only (✓ both boards).
+A2DP *source* is verified on core 3.x (F5 spike, 2026-07-07) using ESP32-A2DP
+pinned to `main@b559fb15`: the released `v1.8.11` references
+`ESP_A2D_AUDIO_STATE_SUSPEND`, which is absent from IDF 5.x, so it won't compile
+— the fix is only on main (unreleased). No pioarduino fork and NO
+`-DA2DP_I2S_AUDIOTOOLS=1` needed for the source path (that flag force-includes
+AudioTools.h, which we don't depend on, and breaks the build). The fallback to
+`espressif32@6.9.0` (core 2.0.x) documented in the F5 plan was therefore NOT taken.
 
 ### LVGL + LovyanGFX gotchas
 
