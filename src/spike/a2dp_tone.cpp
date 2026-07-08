@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-static const char* kSpeakerName = "MY-SPEAKER";  // <-- your speaker's name
+static const char* kSpeakerName = "EDIFIER MP85";  // <-- your speaker's name
 
 static BluetoothA2DPSource a2dp;
 static float phase = 0.0f;

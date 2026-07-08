@@ -29,7 +29,13 @@ class BluetoothAudioService {
                     // Music re-enters Bluetooth every session).
 
   std::vector<BtDevice> scan(uint32_t ms = 8000);  // blocking GAP discovery
-  bool connect(const std::string& addr);           // A2DP source connect
+  // Non-blocking: kicks off the A2DP source connect and returns immediately
+  // (true = attempt started, false = bad address). The library re-discovers
+  // the target by inquiry (~13 s/cycle) before the link comes up, so callers
+  // must poll isConnected() rather than expect a result here — see
+  // BluetoothSection's connectPoll. Returning connected/false synchronously
+  // would either lie (timeout too short) or freeze the UI for ~20 s.
+  bool beginConnect(const std::string& addr);
   void disconnect();
   bool isConnected() const;
 

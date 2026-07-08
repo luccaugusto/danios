@@ -6,6 +6,7 @@
 #include <esp_bt.h>
 #include <esp_bt_main.h>
 #include <esp_gap_bt_api.h>
+#include <esp_heap_caps.h>
 
 #include <atomic>
 #include <cstring>
@@ -97,14 +98,69 @@ bool ssidFilter(const char* /*ssid*/, esp_bd_addr_t address, int /*rssi*/) {
 }
 }  // namespace
 
+// DBG(F5): temporary diagnostic — internal-DRAM free + largest contiguous
+// block. BT bring-up allocates from internal DRAM (+ a FreeRTOS semaphore per
+// osi future); if this pool is too small/fragmented, future_new() returns NULL
+// and bluedroid asserts on the BTA thread. Remove once the OOM is understood.
+static void dbgHeap(const char* where) {
+  Serial.printf("[bt-dbg] %-18s intl_free=%u intl_largest=%u total_free=%u\n",
+                where,
+                static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
+                static_cast<unsigned>(
+                    heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)),
+                static_cast<unsigned>(esp_get_free_heap_size()));
+}
+
 bool BluetoothAudioService::powerOn() {
-  if (!btStarted() && !btStart()) return false;
+  dbgHeap("powerOn:enter");
+  // This app speaks Bluetooth Classic (A2DP) only — never BLE. Arduino's
+  // btStart() enables the controller in BTDM (dual) mode (the precompiled
+  // sdkconfig has CONFIG_BTDM_CONTROLLER_MODE_BTDM=y), which permanently
+  // reserves internal DRAM for a BLE host we never touch. On this PSRAM-less
+  // WROOM-32 that wasted reservation starved bluedroid's enable path: the
+  // HCI-reset future failed to allocate and the BTA thread asserted
+  // (osi/future.c:74, future != NULL). So bring the controller up classic-only
+  // and hand the BLE memory back — this is exactly what ESP32-A2DP's own
+  // bt_start() does for BR/EDR-only use.
+  if (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_IDLE) {
+    // One-way for this boot; on the 2nd+ session the memory is already gone and
+    // this no-ops (returns INVALID_STATE, ignored). We never use BLE.
+    esp_bt_controller_mem_release(ESP_BT_MODE_BLE);
+    dbgHeap("after BLE release");
+    esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+    cfg.mode = ESP_BT_MODE_CLASSIC_BT;  // must equal the enable() mode below
+    if (esp_bt_controller_init(&cfg) != ESP_OK) {
+      Serial.println("[bt-dbg] controller_init FAILED");
+      return false;
+    }
+  }
+  if (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_INITED) {
+    if (esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT) != ESP_OK) {
+      Serial.println("[bt-dbg] controller_enable FAILED");
+      return false;
+    }
+  }
+  if (esp_bt_controller_get_status() != ESP_BT_CONTROLLER_STATUS_ENABLED) {
+    Serial.println("[bt-dbg] controller not ENABLED");
+    return false;
+  }
+  dbgHeap("after ctrl enable");
   if (esp_bluedroid_get_status() == ESP_BLUEDROID_STATUS_UNINITIALIZED) {
-    if (esp_bluedroid_init() != ESP_OK) return false;
+    if (esp_bluedroid_init() != ESP_OK) {
+      Serial.println("[bt-dbg] bluedroid_init FAILED");
+      return false;
+    }
   }
+  dbgHeap("after bd_init");
   if (esp_bluedroid_get_status() != ESP_BLUEDROID_STATUS_ENABLED) {
-    if (esp_bluedroid_enable() != ESP_OK) return false;
+    // The controller start_up (HCI reset) runs on the BTA thread inside this
+    // call; if it OOMs it asserts there before we get a return value back.
+    if (esp_bluedroid_enable() != ESP_OK) {
+      Serial.println("[bt-dbg] bluedroid_enable FAILED");
+      return false;
+    }
   }
+  dbgHeap("after bd_enable");
   return true;
 }
 
@@ -158,7 +214,7 @@ std::vector<BtDevice> BluetoothAudioService::scan(uint32_t ms) {
   return g_scanResults;  // returns a copy — safe, no live writers remain
 }
 
-bool BluetoothAudioService::connect(const std::string& addr) {
+bool BluetoothAudioService::beginConnect(const std::string& addr) {
   if (!parseBtAddr(addr, g_targetAddr)) return false;
   g_haveTarget = true;
 
@@ -169,13 +225,17 @@ bool BluetoothAudioService::connect(const std::string& addr) {
   // The lib may retain the name pointer — keep the backing string alive.
   static std::string liveName;
   liveName = store_.getString("bt.name", "");
+  // DBG(F5): connect-time budget. The A2DP connect allocates its L2CAP/SDP
+  // control blocks from here; too little usable internal DRAM makes bluedroid
+  // OOM-assert on the BTA thread (see lv_conf.h LV_MEM_SIZE note). Remove with
+  // the other [bt-dbg] probes once the budget is confirmed on HW.
+  dbgHeap("connect:before start");
+  // start() returns promptly; it dispatches discovery+connect onto the A2DP
+  // library's own task. The link becomes ready asynchronously — the caller
+  // polls isConnected(). See the header note for why this isn't synchronous.
   a2dp().start(liveName.c_str());
-
-  const uint32_t start = millis();
-  while (!a2dp().is_connected() && millis() - start < 15000) delay(100);
-  Serial.printf("[bt] connect %s: %s\n", addr.c_str(),
-                a2dp().is_connected() ? "ok" : "FAILED");
-  return a2dp().is_connected();
+  Serial.printf("[bt] connect %s: started\n", addr.c_str());
+  return true;
 }
 
 void BluetoothAudioService::disconnect() {

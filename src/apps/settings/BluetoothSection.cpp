@@ -19,9 +19,12 @@ struct BtUi {
   lv_obj_t* list;
   lv_obj_t* pairedRow;   // "Pareada: <addr>" + Conectar/Esquecer
   float tonePhase;
-  lv_timer_t* toneTimer;  // pending test-tone timer, if any
-  bool radioUp;           // radio.request(Bluetooth) result — gates anything
-                          // that would drive the BT stack
+  lv_timer_t* toneTimer;     // pending test-tone timer, if any
+  lv_timer_t* connectTimer;  // pending async-connect poll, if any
+  BtDevice connectTarget;    // device being connected (persist it on success)
+  uint32_t connectStart;     // lv_tick at attempt start (for the timeout)
+  bool radioUp;              // radio.request(Bluetooth) result — gates anything
+                             // that would drive the BT stack
 };
 BtUi ui;  // one Settings screen at a time (single LVGL task) — safe
 
@@ -64,20 +67,47 @@ void toneClicked(lv_event_t*) {
 
 void rebuildPairedRow();
 
+// Async connect (bt->beginConnect is non-blocking). The library re-inquires
+// for ~13 s (one cycle) before it even attempts the link, and may run a second
+// cycle if the speaker isn't seen on the first — so the cutoff must clear two
+// inquiry cycles plus SDP/AVDTP setup, or a slow-to-answer speaker reads as a
+// failure. Polling isConnected() (rather than a blocking wait) keeps the UI
+// live and repainting the whole time.
+constexpr uint32_t kConnectPollMs = 500;
+constexpr uint32_t kConnectTimeoutMs = 35000;
+
+void finishConnect(lv_timer_t* t) {
+  ui.connectTimer = nullptr;
+  lv_timer_del(t);
+  rebuildPairedRow();  // reflect the new paired device (or restore on failure)
+}
+
+void connectPoll(lv_timer_t* t) {
+  if (ui.bt->isConnected()) {
+    // Reconnect passes a nameless BtDevice — don't clobber the stored bt.name.
+    if (!ui.connectTarget.name.empty()) ui.bt->savePaired(ui.connectTarget);
+    setStatus("Conectado " LV_SYMBOL_OK);
+    finishConnect(t);
+  } else if (lv_tick_elaps(ui.connectStart) >= kConnectTimeoutMs) {
+    setStatus("Não foi possível conectar");
+    finishConnect(t);
+  }
+}
+
 void connectTo(const BtDevice& d) {
   if (!ui.radioUp) {
     setStatus("Bluetooth indisponível");
     return;
   }
-  setStatus("Conectando...");
-  if (ui.bt->connect(d.addr)) {
-    // Reconnect passes a nameless BtDevice — don't clobber the stored bt.name.
-    if (!d.name.empty()) ui.bt->savePaired(d);
-    setStatus("Conectado " LV_SYMBOL_OK);
-  } else {
-    setStatus("Não foi possível conectar");
+  if (ui.connectTimer != nullptr) return;  // an attempt is already in flight
+  if (!ui.bt->beginConnect(d.addr)) {
+    setStatus("Endereço inválido");
+    return;
   }
-  rebuildPairedRow();
+  ui.connectTarget = d;
+  ui.connectStart = lv_tick_get();
+  setStatus("Conectando... (pode levar ~20 s)");
+  ui.connectTimer = lv_timer_create(connectPoll, kConnectPollMs, nullptr);
 }
 
 void deviceClicked(lv_event_t* e) {
@@ -86,6 +116,10 @@ void deviceClicked(lv_event_t* e) {
 }
 
 void scanClicked(lv_event_t*) {
+  if (ui.connectTimer != nullptr) {  // scan()'s GAP inquiry would collide with
+    setStatus("Aguarde a conexão terminar");  // the in-flight connect's own
+    return;                                    // discovery — refuse until done
+  }
   setStatus("Buscando ~8 s (caixa em pareamento?)");
   lv_obj_clean(ui.list);
   auto found = ui.bt->scan();
@@ -111,6 +145,10 @@ void reconnectClicked(lv_event_t*) {
 }
 
 void forgetClicked(lv_event_t*) {
+  if (ui.connectTimer != nullptr) {  // don't forget mid-connect: the poll would
+    setStatus("Aguarde a conexão terminar");  // then race the stored addr
+    return;
+  }
   ui.bt->disconnect();
   ui.bt->forgetPaired();
   setStatus("Esquecida");
@@ -139,11 +177,19 @@ void rebuildPairedRow() {
 
 void bodyDeleted(lv_event_t*) {
   ui.bt->setSource(nullptr, nullptr);
-  ui.radio->request(RadioMode::None);  // radio-while-open rule
+  // Stop our timers before tearing the radio down, so neither callback can
+  // fire against an already-powered-off stack (request(None) below powers BT
+  // off and can block in a2dp end() for up to one inquiry cycle if a connect
+  // is still mid-discovery).
   if (ui.toneTimer) {
     lv_timer_del(ui.toneTimer);
     ui.toneTimer = nullptr;
   }
+  if (ui.connectTimer) {
+    lv_timer_del(ui.connectTimer);
+    ui.connectTimer = nullptr;
+  }
+  ui.radio->request(RadioMode::None);  // radio-while-open rule
 }
 }  // namespace
 
@@ -169,6 +215,12 @@ void buildBluetoothSection(lv_obj_t* parent, RadioManager& radio,
 
   ui.pairedRow = lv_obj_create(parent);
   lv_obj_set_width(ui.pairedRow, LV_PCT(100));
+  // Height must hug its content: a plain lv_obj defaults to LV_DPI_DEF (130 px)
+  // tall, which would eat the body's vertical space and squeeze the flex_grow
+  // scan list below it down to a few unusable pixels (found speakers then can't
+  // be seen or tapped). WifiSection avoids this only because its equivalent row
+  // is a (content-sized) button, not a container.
+  lv_obj_set_height(ui.pairedRow, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(ui.pairedRow, LV_FLEX_FLOW_ROW_WRAP);
 
   ui.list = lv_list_create(parent);
