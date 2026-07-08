@@ -20,6 +20,8 @@ struct BtUi {
   lv_obj_t* pairedRow;   // "Pareada: <addr>" + Conectar/Esquecer
   float tonePhase;
   lv_timer_t* toneTimer;  // pending test-tone timer, if any
+  bool radioUp;           // radio.request(Bluetooth) result — gates anything
+                          // that would drive the BT stack
 };
 BtUi ui;  // one Settings screen at a time (single LVGL task) — safe
 
@@ -63,6 +65,10 @@ void toneClicked(lv_event_t*) {
 void rebuildPairedRow();
 
 void connectTo(const BtDevice& d) {
+  if (!ui.radioUp) {
+    setStatus("Bluetooth indisponível");
+    return;
+  }
   setStatus("Conectando...");
   if (ui.bt->connect(d.addr)) {
     // Reconnect passes a nameless BtDevice — don't clobber the stored bt.name.
@@ -124,6 +130,7 @@ void rebuildPairedRow() {
   lv_obj_t* conn = lv_btn_create(ui.pairedRow);
   lv_label_set_text(lv_label_create(conn), "Conectar");
   lv_obj_add_event_cb(conn, reconnectClicked, LV_EVENT_CLICKED, nullptr);
+  if (!ui.radioUp) lv_obj_add_state(conn, LV_STATE_DISABLED);  // radio down
 
   lv_obj_t* forget = lv_btn_create(ui.pairedRow);
   lv_label_set_text(lv_label_create(forget), LV_SYMBOL_TRASH " Esquecer");
@@ -145,6 +152,9 @@ void buildBluetoothSection(lv_obj_t* parent, RadioManager& radio,
   ui = {};
   ui.radio = &radio;
   ui.bt = &bt;
+  // Set before rebuildPairedRow() runs below so it can consult ui.radioUp
+  // when deciding whether to disable the "Conectar" button.
+  ui.radioUp = radio.request(RadioMode::Bluetooth);
 
   ui.status = lv_label_create(parent);
 
@@ -168,7 +178,7 @@ void buildBluetoothSection(lv_obj_t* parent, RadioManager& radio,
   rebuildPairedRow();
   lv_obj_add_event_cb(parent, bodyDeleted, LV_EVENT_DELETE, nullptr);
 
-  if (radio.request(RadioMode::Bluetooth)) {
+  if (ui.radioUp) {
     setStatus("Toque em Buscar para procurar caixas");
   } else {
     lv_obj_add_state(scanBtn, LV_STATE_DISABLED);  // no radio -> no scanning

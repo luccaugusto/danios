@@ -1,5 +1,6 @@
 #include "DisplayService.h"
 
+#include <Arduino.h>
 #include <esp_heap_caps.h>
 
 void DisplayService::begin() {
@@ -19,6 +20,10 @@ void DisplayService::begin() {
   // than as a static member so the 14.4 KB stays out of dram0_0_seg (see .h).
   buf1_ = static_cast<lv_color_t*>(
       heap_caps_malloc(kBufPixels * sizeof(lv_color_t), MALLOC_CAP_DMA));
+  if (buf1_ == nullptr) {
+    Serial.println("[display] FATAL: draw buffer alloc failed");
+    while (true) { delay(1000); }  // boot-critical: cannot run without it
+  }
   lv_disp_draw_buf_init(&drawBuf_, buf1_, nullptr, kBufPixels);
   lv_disp_drv_init(&dispDrv_);
   dispDrv_.hor_res = kHorRes;

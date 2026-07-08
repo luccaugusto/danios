@@ -35,7 +35,12 @@ BluetoothA2DPSource& a2dp() {
 // that prevents that.
 std::atomic<AudioSourceFn> g_sourceFn{nullptr};
 std::atomic<void*> g_sourceCtx{nullptr};
-std::vector<BtDevice>* g_scanOut = nullptr;
+// g_scanResults is persistent (never destroyed), so a late gapCallback firing
+// after scan() has returned can never dereference freed memory. g_scanOut is
+// the atomic gate: non-null only while a scan is actively collecting, so
+// callbacks outside that window early-return instead of touching the buffer.
+std::vector<BtDevice> g_scanResults;
+std::atomic<std::vector<BtDevice>*> g_scanOut{nullptr};
 uint8_t g_targetAddr[6] = {};
 bool g_haveTarget = false;
 
@@ -59,7 +64,9 @@ int32_t frameBridge(Frame* frames, int32_t count) {
 }
 
 void gapCallback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
-  if (event != ESP_BT_GAP_DISC_RES_EVT || g_scanOut == nullptr) return;
+  if (event != ESP_BT_GAP_DISC_RES_EVT) return;
+  std::vector<BtDevice>* out = g_scanOut.load(std::memory_order_acquire);
+  if (out == nullptr) return;
 
   std::string name;
   for (int i = 0; i < param->disc_res.num_prop; ++i) {
@@ -78,10 +85,10 @@ void gapCallback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
   if (name.empty()) return;  // nameless results are unpickable in the UI
 
   const std::string addr = formatBtAddr(param->disc_res.bda);
-  for (auto& d : *g_scanOut) {
+  for (auto& d : *out) {
     if (d.addr == addr) return;  // dedupe repeated inquiry responses
   }
-  g_scanOut->push_back({name, addr});
+  out->push_back({name, addr});
 }
 
 // A2DP-source device filter: accept only the device we were asked to connect.
@@ -115,6 +122,8 @@ void BluetoothAudioService::powerOff() {
   // Only tear down A2DP if it was ever brought up — calling end() would
   // otherwise lazily construct the (heap-allocated) source needlessly.
   if (g_a2dpPtr != nullptr) {
+    // Can block up to ~one inquiry cycle (~12.8 s) if teardown happens
+    // mid-discovery after a failed connect.
     g_a2dpPtr->end(false);  // false: keep controller memory — BT restarts later
   }
   if (esp_bluedroid_get_status() == ESP_BLUEDROID_STATUS_ENABLED) {
@@ -128,8 +137,8 @@ void BluetoothAudioService::powerOff() {
 }
 
 std::vector<BtDevice> BluetoothAudioService::scan(uint32_t ms) {
-  std::vector<BtDevice> out;
-  g_scanOut = &out;
+  g_scanResults.clear();
+  g_scanOut.store(&g_scanResults, std::memory_order_release);
   esp_bt_gap_register_callback(gapCallback);
   // Inquiry length is in 1.28 s units, clamped to GAP's 0x01..0x30 range.
   uint8_t len = static_cast<uint8_t>(ms / 1280);
@@ -137,11 +146,16 @@ std::vector<BtDevice> BluetoothAudioService::scan(uint32_t ms) {
   if (len > 0x30) len = 0x30;
   esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, len, 0);
   delay(ms);
-  esp_bt_gap_cancel_discovery();
-  g_scanOut = nullptr;
+  esp_bt_gap_cancel_discovery();  // asynchronous — a DISC_RES may still land
+  g_scanOut.store(nullptr, std::memory_order_release);  // any callback
+                                                         // starting now
+                                                         // early-returns
+  delay(150);  // let an in-flight callback (already past the null-check)
+               // finish writing to g_scanResults before we read it below —
+               // no writer touches g_scanResults after this settle window
   Serial.printf("[bt] scan found %u device(s)\n",
-                static_cast<unsigned>(out.size()));
-  return out;
+                static_cast<unsigned>(g_scanResults.size()));
+  return g_scanResults;  // returns a copy — safe, no live writers remain
 }
 
 bool BluetoothAudioService::connect(const std::string& addr) {

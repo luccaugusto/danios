@@ -108,10 +108,12 @@ bool TimeService::syncNow() {
     if (detectTimezone(tz)) setTimezone(tz);
   }
 
-  // F5: the failed-borrow early-return above does NOT restore prev, and the
-  // BtOn branch below relies on request(Bluetooth) succeeding. Safe in F4 (the
-  // radio never reaches BtOn while BT is stubbed, so prev is only Off/WiFiOn);
-  // revisit this restore path when Bluetooth actually arms in F5.
+  // The failed-borrow early-return above does NOT restore prev, and the
+  // BtOn branch below relies on request(Bluetooth) succeeding. syncNow is
+  // currently only reached from boot (prev = WiFiOn) and the Clock section
+  // (prev = Off), so the BtOn branch is presently unreachable. Any future
+  // caller that invokes syncNow while BT is up must also handle reconnecting
+  // the speaker — this restore path only re-powers the radio.
   // Restore whatever the radio was doing before we borrowed it.
   if (prev == RadioState::Off) radio_.request(RadioMode::None);
   else if (prev == RadioState::BtOn) radio_.request(RadioMode::Bluetooth);
