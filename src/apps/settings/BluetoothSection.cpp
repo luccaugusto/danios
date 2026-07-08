@@ -4,6 +4,7 @@
 #include <lvgl.h>
 
 #include <cmath>
+#include <string>
 
 #include "apps/settings/Sections.h"
 #include "core/App.h"  // RadioMode
@@ -14,11 +15,11 @@ namespace {
 struct BtUi {
   RadioManager* radio;
   BluetoothAudioService* bt;
-  lv_obj_t* body;
   lv_obj_t* status;
   lv_obj_t* list;
   lv_obj_t* pairedRow;   // "Pareada: <addr>" + Conectar/Esquecer
   float tonePhase;
+  lv_timer_t* toneTimer;  // pending test-tone timer, if any
 };
 BtUi ui;  // one Settings screen at a time (single LVGL task) — safe
 
@@ -43,6 +44,7 @@ int32_t toneSource(int16_t* buf, int32_t frames, void* ctx) {
 
 void toneTimerDone(lv_timer_t* t) {
   ui.bt->setSource(nullptr, nullptr);  // back to silence
+  ui.toneTimer = nullptr;
   lv_timer_del(t);
   setStatus("Tom concluído " LV_SYMBOL_OK);
 }
@@ -55,7 +57,7 @@ void toneClicked(lv_event_t*) {
   ui.tonePhase = 0.0f;
   ui.bt->setSource(toneSource, &ui.tonePhase);
   setStatus("Tocando 440 Hz...");
-  lv_timer_create(toneTimerDone, 2000, nullptr);
+  ui.toneTimer = lv_timer_create(toneTimerDone, 2000, nullptr);
 }
 
 void rebuildPairedRow();
@@ -81,7 +83,7 @@ void scanClicked(lv_event_t*) {
   setStatus("Buscando ~8 s (caixa em pareamento?)");
   lv_obj_clean(ui.list);
   auto found = ui.bt->scan();
-  if (found.empty()) lv_list_add_text(ui.list, "Nada encontrado");
+  if (found.empty()) lv_list_add_text(ui.list, "Nenhuma caixa encontrada");
   for (auto& d : found) {
     lv_obj_t* btn = lv_list_add_btn(ui.list, LV_SYMBOL_BLUETOOTH, d.name.c_str());
     // Copy the device into button-owned memory (found dies with this scope).
@@ -131,6 +133,10 @@ void rebuildPairedRow() {
 void bodyDeleted(lv_event_t*) {
   ui.bt->setSource(nullptr, nullptr);
   ui.radio->request(RadioMode::None);  // radio-while-open rule
+  if (ui.toneTimer) {
+    lv_timer_del(ui.toneTimer);
+    ui.toneTimer = nullptr;
+  }
 }
 }  // namespace
 
@@ -139,7 +145,6 @@ void buildBluetoothSection(lv_obj_t* parent, RadioManager& radio,
   ui = {};
   ui.radio = &radio;
   ui.bt = &bt;
-  ui.body = parent;
 
   ui.status = lv_label_create(parent);
 
@@ -166,6 +171,8 @@ void buildBluetoothSection(lv_obj_t* parent, RadioManager& radio,
   if (radio.request(RadioMode::Bluetooth)) {
     setStatus("Toque em Buscar para procurar caixas");
   } else {
+    lv_obj_add_state(scanBtn, LV_STATE_DISABLED);  // no radio -> no scanning
+    lv_obj_add_state(toneBtn, LV_STATE_DISABLED);  // no radio -> no tone
     setStatus("Bluetooth indisponível");
   }
 }
