@@ -789,7 +789,11 @@ git commit -m "feat: Oracle app — daily wisdom from SD via date-seeded shuffle
 - [ ] **Step 1: Prepare the card and flash**
 
 Copy the **contents** of `sd/` to the root of the microSD card (so the card
-has `/oracle/wisdom.txt` and `/art/icons/settings.bin`), insert it, then:
+has `/oracle/wisdom.txt`, `/art/icons/settings.bin`, and
+`/art/oracle/frame.bin` — the hand-drawn oracle art, a mid-execution
+deviation: the maker's `assets/art/oracle.png` was converted to an LVGL
+`.bin`, so the real-art branch runs by default and the purple placeholder
+only appears if `frame.bin` is missing), insert it, then:
 
 Run: `pio run -e cyd -t upload` (CYD enumerates as `/dev/ttyUSB0`)
 Expected: upload completes; serial (115200) prints `danios: launcher up`
@@ -799,8 +803,11 @@ Expected: upload completes; serial (115200) prints `danios: launcher up`
 - Set the clock: Settings → Clock section (F4) → manual set to today ~10:00
   (no WiFi needed).
 - Open **Oráculo** (fourth grid icon, colored-letter fallback — no icon art
-  yet by design): one wisdom entry appears, wrapped and centered inside the
-  purple-bordered placeholder frame (no `frame.bin` on the card yet).
+  yet by design): one wisdom entry appears, wrapped and centered **over the
+  hand-drawn oracle art** (`frame.bin` ships on the card now). Check the
+  entry text is legible over the art — the label inherits the theme's white
+  text. To exercise the placeholder branch instead, temporarily rename
+  `/art/oracle/frame.bin` on the card: a purple-bordered box should appear.
 - Back to the launcher, reopen three times: **the same entry every time**.
 - Visit other apps and come back: still the same entry.
 
