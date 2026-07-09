@@ -15,6 +15,9 @@ class CalcEngine {
   void clear();              // C — full reset; the only way out of error state
   void op(char o);           // '+', '-', '*', '/' — chains left-to-right
   void equals();
+  void backspace();          // ⌫ — edits the number being typed; else ignored
+  void negate();             // +/- — toggles entry sign, or negates the result
+  void percent();            // current value ÷ 100, becomes the entry
   std::string display() const;
   bool inError() const { return error_; }
 

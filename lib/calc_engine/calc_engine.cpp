@@ -49,6 +49,28 @@ void CalcEngine::equals() {
   pendingOp_ = 0;
 }
 
+void CalcEngine::backspace() {
+  if (error_ || entry_.empty()) return;
+  entry_.pop_back();
+  if (entry_ == "-") entry_.clear();
+}
+
+void CalcEngine::negate() {
+  if (error_) return;
+  if (entry_.empty()) {      // no entry being typed: negate the shown result
+    acc_ = -acc_;
+    return;
+  }
+  if (entry_[0] == '-') entry_.erase(0, 1);
+  else entry_.insert(0, "-");
+}
+
+void CalcEngine::percent() {
+  if (error_) return;
+  const double v = entry_.empty() ? acc_ : entryValue();
+  entry_ = format(v / 100.0);  // becomes the entry, so it chains like typed input
+}
+
 double CalcEngine::entryValue() const {
   return std::strtod(entry_.c_str(), nullptr);  // "", "-", "." all parse as 0
 }

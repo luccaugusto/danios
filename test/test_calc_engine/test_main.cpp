@@ -217,6 +217,108 @@ static void test_overflow_sets_error_not_inf() {
   TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
 }
 
+static void test_backspace_removes_last_char() {
+  CalcEngine e;
+  e.digit('1');
+  e.digit('2');
+  e.digit('3');
+  e.backspace();
+  TEST_ASSERT_EQUAL_STRING("12", e.display().c_str());
+}
+
+static void test_backspace_to_empty_shows_zero() {
+  CalcEngine e;
+  e.digit('5');
+  e.backspace();
+  TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
+}
+
+static void test_backspace_only_edits_typed_entry() {
+  CalcEngine e;
+  e.digit('2');
+  e.op('+');
+  e.digit('3');
+  e.equals();      // result 5 is not a typed entry
+  e.backspace();   // ignored
+  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
+}
+
+static void test_negate_toggles_entry_sign() {
+  CalcEngine e;
+  e.digit('4');
+  e.digit('2');
+  e.negate();
+  TEST_ASSERT_EQUAL_STRING("-42", e.display().c_str());
+  e.negate();
+  TEST_ASSERT_EQUAL_STRING("42", e.display().c_str());
+}
+
+static void test_negate_applies_to_result() {
+  CalcEngine e;
+  e.digit('2');
+  e.op('+');
+  e.digit('3');
+  e.equals();
+  e.negate();
+  TEST_ASSERT_EQUAL_STRING("-5", e.display().c_str());
+}
+
+static void test_negate_never_displays_minus_zero() {
+  CalcEngine e;
+  e.negate();  // negating the initial 0
+  TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
+}
+
+static void test_negated_entry_used_in_arithmetic() {
+  CalcEngine e;
+  e.digit('5');
+  e.op('+');
+  e.digit('3');
+  e.negate();  // rhs is -3
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("2", e.display().c_str());
+}
+
+static void test_percent_divides_entry_by_100() {
+  CalcEngine e;
+  e.digit('5');
+  e.digit('0');
+  e.percent();
+  TEST_ASSERT_EQUAL_STRING("0.5", e.display().c_str());
+}
+
+static void test_percent_result_chains() {
+  CalcEngine e;
+  e.digit('2'); e.digit('0'); e.digit('0');
+  e.op('*');
+  e.digit('1'); e.digit('0');
+  e.percent();  // rhs becomes 0.1
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("20", e.display().c_str());  // 200 × 10% = 20
+}
+
+static void test_percent_applies_to_result() {
+  CalcEngine e;
+  e.digit('2');
+  e.op('+');
+  e.digit('3');
+  e.equals();  // 5
+  e.percent();
+  TEST_ASSERT_EQUAL_STRING("0.05", e.display().c_str());
+}
+
+static void test_editing_keys_ignored_in_error_state() {
+  CalcEngine e;
+  e.digit('5');
+  e.op('/');
+  e.digit('0');
+  e.equals();
+  e.backspace();
+  e.negate();
+  e.percent();
+  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_starts_at_zero);
@@ -241,5 +343,16 @@ int main(int, char**) {
   RUN_TEST(test_error_state_ignores_keys);
   RUN_TEST(test_clear_recovers_from_error);
   RUN_TEST(test_overflow_sets_error_not_inf);
+  RUN_TEST(test_backspace_removes_last_char);
+  RUN_TEST(test_backspace_to_empty_shows_zero);
+  RUN_TEST(test_backspace_only_edits_typed_entry);
+  RUN_TEST(test_negate_toggles_entry_sign);
+  RUN_TEST(test_negate_applies_to_result);
+  RUN_TEST(test_negate_never_displays_minus_zero);
+  RUN_TEST(test_negated_entry_used_in_arithmetic);
+  RUN_TEST(test_percent_divides_entry_by_100);
+  RUN_TEST(test_percent_result_chains);
+  RUN_TEST(test_percent_applies_to_result);
+  RUN_TEST(test_editing_keys_ignored_in_error_state);
   return UNITY_END();
 }
