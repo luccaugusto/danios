@@ -6,6 +6,7 @@
 
 #include "apps/StubApp.h"
 #include "apps/app_catalog.h"
+#include "apps/oracle/OracleApp.h"
 #include "apps/settings/SettingsApp.h"
 #include "core/Launcher.h"
 #include "core/StatusBar.h"
@@ -35,7 +36,7 @@ static TimeService timeService(radioManager, wifiService, settings);
 static StubApp weatherStub("weather", catalog::kWeather);
 static StubApp musicStub("music", catalog::kMusic);
 static StubApp calcStub("calc", catalog::kCalc);
-static StubApp oracleStub("oracle", catalog::kOracle);
+static OracleApp oracleApp;
 static StubApp petStub("pet", catalog::kPet);
 static SettingsApp settingsApp;
 
@@ -121,7 +122,8 @@ void setup() {
   launcher.registerApp(&weatherStub);
   launcher.registerApp(&musicStub);
   launcher.registerApp(&calcStub);
-  launcher.registerApp(&oracleStub);
+  oracleApp.setDeps(storage, timeService);
+  launcher.registerApp(&oracleApp);
   launcher.registerApp(&petStub);
   settingsApp.setDeps(settings, displayService, storage, radioManager,
                       wifiService, timeService);
