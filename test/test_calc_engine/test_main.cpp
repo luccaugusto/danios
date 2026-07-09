@@ -157,6 +157,66 @@ static void test_double_noise_rounded_away() {
   TEST_ASSERT_EQUAL_STRING("0.3", e.display().c_str());  // not 0.30000000000000004
 }
 
+static void test_divide_by_zero_shows_error() {
+  CalcEngine e;
+  e.digit('5');
+  e.op('/');
+  e.digit('0');
+  e.equals();
+  TEST_ASSERT_TRUE(e.inError());
+  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());  // never raw inf/nan
+}
+
+static void test_divide_by_zero_via_chaining() {
+  CalcEngine e;
+  e.digit('5');
+  e.op('/');
+  e.digit('0');
+  e.op('+');  // the chained evaluation happens here
+  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
+}
+
+static void test_error_state_ignores_keys() {
+  CalcEngine e;
+  e.digit('5');
+  e.op('/');
+  e.digit('0');
+  e.equals();
+  e.digit('7');
+  e.dot();
+  e.op('+');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
+}
+
+static void test_clear_recovers_from_error() {
+  CalcEngine e;
+  e.digit('5');
+  e.op('/');
+  e.digit('0');
+  e.equals();
+  e.clear();
+  TEST_ASSERT_FALSE(e.inError());
+  TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
+  e.digit('1');
+  e.op('+');
+  e.digit('1');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("2", e.display().c_str());  // fully functional again
+}
+
+static void test_overflow_sets_error_not_inf() {
+  CalcEngine e;
+  for (int i = 0; i < 12; ++i) e.digit('9');       // ~1e12
+  for (int round = 0; round < 30 && !e.inError(); ++round) {
+    e.op('*');
+    for (int i = 0; i < 12; ++i) e.digit('9');     // ×~1e12 per round → inf ~round 25
+    e.equals();
+  }
+  TEST_ASSERT_TRUE(e.inError());
+  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_starts_at_zero);
@@ -176,5 +236,10 @@ int main(int, char**) {
   RUN_TEST(test_equals_without_operator_keeps_entry);
   RUN_TEST(test_integer_result_has_no_decimals);
   RUN_TEST(test_double_noise_rounded_away);
+  RUN_TEST(test_divide_by_zero_shows_error);
+  RUN_TEST(test_divide_by_zero_via_chaining);
+  RUN_TEST(test_error_state_ignores_keys);
+  RUN_TEST(test_clear_recovers_from_error);
+  RUN_TEST(test_overflow_sets_error_not_inf);
   return UNITY_END();
 }

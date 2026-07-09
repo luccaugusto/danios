@@ -1,6 +1,7 @@
 #include "calc_engine.h"
 
 #include <cstdio>
+#include <cmath>
 #include <cstdlib>
 
 namespace {
@@ -54,6 +55,10 @@ double CalcEngine::entryValue() const {
 
 void CalcEngine::applyPending() {
   const double rhs = entryValue();
+  if (pendingOp_ == '/' && rhs == 0.0) {  // graceful ÷0: error state, C recovers
+    error_ = true;
+    return;
+  }
   switch (pendingOp_) {
     case '+': acc_ += rhs; break;
     case '-': acc_ -= rhs; break;
@@ -61,6 +66,7 @@ void CalcEngine::applyPending() {
     case '/': acc_ /= rhs; break;
   }
   pendingOp_ = 0;
+  if (!std::isfinite(acc_)) error_ = true;  // overflow → "Erro", never raw inf/nan
 }
 
 void CalcEngine::clear() {
