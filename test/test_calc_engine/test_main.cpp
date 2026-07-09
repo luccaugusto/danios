@@ -61,6 +61,102 @@ static void test_clear_resets_entry() {
   TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
 }
 
+static void test_addition() {
+  CalcEngine e;
+  e.digit('2');
+  e.op('+');
+  e.digit('3');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
+}
+
+static void test_subtraction() {
+  CalcEngine e;
+  e.digit('9');
+  e.op('-');
+  e.digit('4');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
+}
+
+static void test_multiplication() {
+  CalcEngine e;
+  e.digit('6');
+  e.op('*');
+  e.digit('7');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("42", e.display().c_str());
+}
+
+static void test_division_no_trailing_zeros() {
+  CalcEngine e;
+  e.digit('7');
+  e.op('/');
+  e.digit('2');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("3.5", e.display().c_str());  // not "3.500000"
+}
+
+// The spec's own example: 2 + 3 × 4 = → 20 (left-to-right, not precedence).
+static void test_chaining_evaluates_left_to_right() {
+  CalcEngine e;
+  e.digit('2');
+  e.op('+');
+  e.digit('3');
+  e.op('*');  // evaluates 2+3 here → display shows 5
+  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
+  e.digit('4');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("20", e.display().c_str());
+}
+
+static void test_second_operator_replaces_first() {
+  CalcEngine e;
+  e.digit('6');
+  e.op('+');
+  e.op('*');  // changed my mind: multiply, not add
+  e.digit('7');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("42", e.display().c_str());
+}
+
+static void test_continue_from_result() {
+  CalcEngine e;
+  e.digit('2');
+  e.op('+');
+  e.digit('3');
+  e.equals();  // 5
+  e.op('+');
+  e.digit('4');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("9", e.display().c_str());
+}
+
+static void test_equals_without_operator_keeps_entry() {
+  CalcEngine e;
+  e.digit('5');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
+}
+
+static void test_integer_result_has_no_decimals() {
+  CalcEngine e;
+  e.digit('8');
+  e.op('/');
+  e.digit('4');
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("2", e.display().c_str());  // not "2.000000"
+}
+
+static void test_double_noise_rounded_away() {
+  CalcEngine e;
+  e.dot(); e.digit('1');   // 0.1
+  e.op('+');
+  e.dot(); e.digit('2');   // 0.2
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("0.3", e.display().c_str());  // not 0.30000000000000004
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_starts_at_zero);
@@ -70,5 +166,15 @@ int main(int, char**) {
   RUN_TEST(test_second_dot_is_ignored);
   RUN_TEST(test_entry_capped_at_12_chars);
   RUN_TEST(test_clear_resets_entry);
+  RUN_TEST(test_addition);
+  RUN_TEST(test_subtraction);
+  RUN_TEST(test_multiplication);
+  RUN_TEST(test_division_no_trailing_zeros);
+  RUN_TEST(test_chaining_evaluates_left_to_right);
+  RUN_TEST(test_second_operator_replaces_first);
+  RUN_TEST(test_continue_from_result);
+  RUN_TEST(test_equals_without_operator_keeps_entry);
+  RUN_TEST(test_integer_result_has_no_decimals);
+  RUN_TEST(test_double_noise_rounded_away);
   return UNITY_END();
 }

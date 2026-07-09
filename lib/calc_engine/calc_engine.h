@@ -13,10 +13,14 @@ class CalcEngine {
   void digit(char d);        // '0'..'9'
   void dot();                // decimal point (one per number)
   void clear();              // C — full reset; the only way out of error state
+  void op(char o);           // '+', '-', '*', '/' — chains left-to-right
+  void equals();
   std::string display() const;
   bool inError() const { return error_; }
 
  private:
+  double entryValue() const;
+  void applyPending();       // acc_ = acc_ <pendingOp_> entry; clears the op
   static std::string format(double v);
 
   double acc_ = 0.0;         // running result (left operand)

@@ -1,6 +1,7 @@
 #include "calc_engine.h"
 
 #include <cstdio>
+#include <cstdlib>
 
 namespace {
 // Longest typeable number — keeps the entry inside the 240 px display row.
@@ -21,6 +22,45 @@ void CalcEngine::dot() {
   if (entry_.empty() || entry_ == "-") entry_ += '0'; // "." types "0."
   if (entry_.size() >= kMaxEntryLen) return;
   entry_ += '.';
+}
+
+void CalcEngine::op(char o) {
+  if (error_) return;
+  if (!entry_.empty()) {
+    if (pendingOp_ != 0) {
+      applyPending();        // classic chaining: evaluate left-to-right
+      if (error_) return;
+    } else {
+      acc_ = entryValue();
+    }
+    entry_.clear();
+  }
+  pendingOp_ = o;            // a second operator in a row replaces the first
+}
+
+void CalcEngine::equals() {
+  if (error_) return;
+  if (!entry_.empty()) {
+    if (pendingOp_ != 0) applyPending();
+    else acc_ = entryValue();
+    entry_.clear();
+  }
+  pendingOp_ = 0;
+}
+
+double CalcEngine::entryValue() const {
+  return std::strtod(entry_.c_str(), nullptr);  // "", "-", "." all parse as 0
+}
+
+void CalcEngine::applyPending() {
+  const double rhs = entryValue();
+  switch (pendingOp_) {
+    case '+': acc_ += rhs; break;
+    case '-': acc_ -= rhs; break;
+    case '*': acc_ *= rhs; break;
+    case '/': acc_ /= rhs; break;
+  }
+  pendingOp_ = 0;
 }
 
 void CalcEngine::clear() {
