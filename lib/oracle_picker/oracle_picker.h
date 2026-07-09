@@ -11,6 +11,12 @@
 #include <cstddef>
 #include <cstdint>
 
+// Core walk, exposed for native tests: daySerial is the civil-day number
+// (1970-01-01 = 0; may be negative — handled with floor semantics). Each
+// aligned entryCount-day cycle is a Fisher-Yates permutation seeded from
+// (cycle number, entryCount).
+size_t oraclePickAt(int32_t daySerial, size_t entryCount);
+
 // The shape pinned by the spec: (date_utils dateKey YYYYMMDD, list size) →
 // index into the list. entryCount 0 → 0 (callers guard the empty list
 // themselves); entryCount 1 → always 0.
