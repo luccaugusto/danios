@@ -144,8 +144,9 @@ void setup() {
   }
 
   // Boot flow step 4 (spec §3.4): if a network is saved, bring WiFi up briefly
-  // to sync time, prefetch weather, then drop the radio. Bounded ~23 s worst
-  // case (8 s connect + 15 s NTP); a splash label keeps the screen honest.
+  // to sync time, prefetch weather, then drop the radio. Bounded ~43 s worst
+  // case (8 s connect + 15 s NTP + 2x10 s weather HTTP: geolocate +
+  // forecast); a splash label keeps the screen honest.
   if (wifiService.hasCredentials()) {
     lv_obj_t* splash = lv_label_create(lv_scr_act());
     lv_label_set_text(splash, "Conectando" LV_SYMBOL_WIFI);

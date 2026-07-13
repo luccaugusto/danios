@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "Sections.h"
+#include "apps/settings/Sections.h"
 
 namespace {
 struct LocUi {

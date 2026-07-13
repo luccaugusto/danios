@@ -68,6 +68,7 @@ bool weatherRefresh(ISettingsStore& store, TimeService& time) {
   }
   if (lat == kNoCoord || lon == kNoCoord) return false;  // nowhere to look up
 
+  Serial.printf("[wx] heap before fetch %u\n", ESP.getFreeHeap());
   WiFiClientSecure client;
   client.setInsecure();  // spec: HTTPS without cert pinning
   HTTPClient http;
@@ -81,6 +82,7 @@ bool weatherRefresh(ISettingsStore& store, TimeService& time) {
   }
   const String body = http.getString();
   http.end();
+  Serial.printf("[wx] heap after fetch %u\n", ESP.getFreeHeap());
 
   if (!parseForecast(body.c_str()).ok) {
     Serial.println("[wx] forecast parse failed");

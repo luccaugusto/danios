@@ -189,7 +189,7 @@ void WeatherApp::refreshNow(uint32_t now_ms) {
 
   // The Launcher already put the radio in WiFi mode (requiredRadio); we only
   // need the connection itself.
-  const bool online = wifi_->isConnected() || wifi_->connect();
+  const bool online = wifi_->isConnected() || wifi_->connect(8000);
   if (online && weatherRefresh(*store_, *time_)) {
     const ForecastWx f =
         parseForecast(store_->getString("wx.json", "").c_str());
