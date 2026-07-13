@@ -187,6 +187,35 @@ static void test_art_unknown_condition_has_no_slots() {
   TEST_ASSERT_NULL(s.background);
 }
 
+static void test_tz_utc_minus_3() {
+  // The spec's own example: -10800 -> "<-03>3".
+  TEST_ASSERT_EQUAL_STRING("<-03>3", posixTzFromOffset(-10800).c_str());
+}
+
+static void test_tz_utc_plus_2() {
+  // POSIX offsets are inverted (seconds WEST of UTC): east zones are negative.
+  TEST_ASSERT_EQUAL_STRING("<+02>-2", posixTzFromOffset(7200).c_str());
+}
+
+static void test_tz_utc_zero() {
+  TEST_ASSERT_EQUAL_STRING("<+00>0", posixTzFromOffset(0).c_str());
+}
+
+static void test_tz_half_hour_east() {
+  // India, UTC+5:30.
+  TEST_ASSERT_EQUAL_STRING("<+0530>-5:30", posixTzFromOffset(19800).c_str());
+}
+
+static void test_tz_half_hour_west() {
+  // Newfoundland, UTC-3:30.
+  TEST_ASSERT_EQUAL_STRING("<-0330>3:30", posixTzFromOffset(-12600).c_str());
+}
+
+static void test_tz_quarter_hour() {
+  // Nepal, UTC+5:45.
+  TEST_ASSERT_EQUAL_STRING("<+0545>-5:45", posixTzFromOffset(20700).c_str());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_band_freezing_below_zero);
@@ -209,5 +238,11 @@ int main(int, char**) {
   RUN_TEST(test_art_background_per_condition);
   RUN_TEST(test_art_clear_night_variant);
   RUN_TEST(test_art_unknown_condition_has_no_slots);
+  RUN_TEST(test_tz_utc_minus_3);
+  RUN_TEST(test_tz_utc_plus_2);
+  RUN_TEST(test_tz_utc_zero);
+  RUN_TEST(test_tz_half_hour_east);
+  RUN_TEST(test_tz_half_hour_west);
+  RUN_TEST(test_tz_quarter_hour);
   return UNITY_END();
 }

@@ -32,3 +32,9 @@ struct ArtSlots {
   const char* background;  // scene behind the character, or nullptr = plain
 };
 ArtSlots artSlots(TempBand band, Condition cond, bool isDay);
+
+// ip-api `offset` (seconds EAST of UTC) -> fixed-offset POSIX TZ string for
+// TimeService::setTimezone(), e.g. -10800 -> "<-03>3" (roadmap §4.8 +
+// deviation 4: no IANA names, no DST — the offset refreshes on the next
+// geolocation).
+std::string posixTzFromOffset(int32_t offsetSeconds);

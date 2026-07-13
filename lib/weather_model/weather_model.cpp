@@ -1,4 +1,5 @@
 #include "weather_model.h"
+#include <cstdio>
 
 TempBand tempBand(float celsius) {
   if (celsius < 0.0f) return TempBand::Freezing;
@@ -81,4 +82,23 @@ ArtSlots artSlots(TempBand band, Condition cond, bool isDay) {
       break;  // Unknown: plain background, no accessory
   }
   return s;
+}
+
+std::string posixTzFromOffset(int32_t offsetSeconds) {
+  const int32_t abs = offsetSeconds < 0 ? -offsetSeconds : offsetSeconds;
+  const int h = abs / 3600;
+  const int m = (abs % 3600) / 60;
+
+  // The <name> mirrors the UTC offset ("<-03>", "<+0530>"); the POSIX offset
+  // after it is inverted — hours WEST of UTC — per IEEE 1003.1 TZ format.
+  const char nameSign = offsetSeconds < 0 ? '-' : '+';
+  const char* posixSign = offsetSeconds > 0 ? "-" : "";
+  char buf[20];
+  if (m == 0) {
+    std::snprintf(buf, sizeof(buf), "<%c%02d>%s%d", nameSign, h, posixSign, h);
+  } else {
+    std::snprintf(buf, sizeof(buf), "<%c%02d%02d>%s%d:%02d", nameSign, h, m,
+                  posixSign, h, m);
+  }
+  return buf;
 }
