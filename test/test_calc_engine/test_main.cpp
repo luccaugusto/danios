@@ -475,6 +475,40 @@ static void test_result_never_minus_zero() {
   TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
 }
 
+static void test_overflow_sets_error_not_inf() {
+  CalcEngine e;
+  type(e, "999999999999*999999999999=");
+  for (int i = 0; i < 40 && !e.inError(); ++i) type(e, "*999999999999=");
+  TEST_ASSERT_TRUE(e.inError());
+  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
+}
+
+static void test_exponent_result_continues_with_operator() {
+  CalcEngine e;
+  type(e, "999999999999*999999999999=");  // ~1e24, %.10g -> "1e+24"
+  TEST_ASSERT_EQUAL_STRING("1e+24", e.display().c_str());
+  type(e, "*2=");
+  TEST_ASSERT_EQUAL_STRING("2e+24", e.display().c_str());
+}
+
+static void test_backspace_into_exponent_fails_safe() {
+  CalcEngine e;
+  type(e, "999999999999*999999999999=");  // "1e+24"
+  e.backspace();
+  e.backspace();  // "1e+"
+  e.equals();
+  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
+  e.clear();
+  TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
+}
+
+static void test_percent_on_exponent_result_ignored() {
+  CalcEngine e;
+  type(e, "999999999999*999999999999=");  // "1e+24"
+  e.percent();
+  TEST_ASSERT_EQUAL_STRING("1e+24", e.display().c_str());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_starts_at_zero);
@@ -536,5 +570,9 @@ int main(int, char**) {
   RUN_TEST(test_backspace_after_result_edits_it);
   RUN_TEST(test_percent_then_equals);
   RUN_TEST(test_result_never_minus_zero);
+  RUN_TEST(test_overflow_sets_error_not_inf);
+  RUN_TEST(test_exponent_result_continues_with_operator);
+  RUN_TEST(test_backspace_into_exponent_fails_safe);
+  RUN_TEST(test_percent_on_exponent_result_ignored);
   return UNITY_END();
 }

@@ -5,7 +5,7 @@
 #include <cstdlib>
 
 namespace {
-constexpr size_t kMaxNumberLen = 12;  // longest typeable number
+constexpr size_t kMaxNumberLen = 12;  // longest typeable number (formatted results from '=' or percent() may legitimately exceed this; downstream guards cope)
 constexpr size_t kMaxExprLen = 48;    // whole-expression cap
 
 bool isOp(char c) { return c == '+' || c == '-' || c == '*' || c == '/'; }
@@ -148,6 +148,12 @@ void CalcEngine::percent() {
   const char last = expr_.back();
   if (!isDigitCh(last) && last != '.') return;  // must end in a number
   const size_t numStart = lastNumberStart();
+  if (numStart > 0) {  // exponent results ("1e+24") defeat lastNumberStart()
+    const char prev = expr_[numStart - 1];
+    const bool signAfterE = (prev == '+' || prev == '-') && numStart >= 2 &&
+                            expr_[numStart - 2] == 'e';
+    if (prev == 'e' || signAfterE) return;
+  }
   const double v = std::strtod(expr_.c_str() + numStart, nullptr);
   const std::string repl = format(v / 100.0);
   if (numStart + repl.size() > kMaxExprLen) return;
