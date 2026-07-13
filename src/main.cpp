@@ -9,6 +9,7 @@
 #include "apps/calculator/CalculatorApp.h"
 #include "apps/oracle/OracleApp.h"
 #include "apps/settings/SettingsApp.h"
+#include "apps/weather/WeatherFetch.h"
 #include "core/Launcher.h"
 #include "core/StatusBar.h"
 #include "core/Version.h"
@@ -151,7 +152,7 @@ void setup() {
 
     if (radioManager.request(RadioMode::WiFi) && wifiService.connect(8000)) {
       timeService.syncNow();  // already WiFiOn -> no radio dance inside
-      // A3: weather boot prefetch hook
+      weatherRefresh(settings, timeService);  // A3 boot prefetch (spec §3.4 step 4)
     }
     radioManager.request(RadioMode::None);
     lv_obj_del(splash);
