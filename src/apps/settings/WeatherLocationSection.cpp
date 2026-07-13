@@ -18,6 +18,7 @@ struct LocUi {
   lv_obj_t* lat;
   lv_obj_t* lon;
   lv_obj_t* status;
+  lv_obj_t* kb;  // top-layer keyboard bound to a manualBox textarea, if open
 };
 LocUi ui;  // one Settings screen at a time (single LVGL task) — safe
 
@@ -49,13 +50,28 @@ void kbEvent(lv_event_t* e) {
   lv_obj_del_async(lv_event_get_current_target(e));
 }
 
+void kbDeleted(lv_event_t*) {
+  // Fires on every deletion path (READY/CANCEL async delete, or teardown).
+  ui.kb = nullptr;
+}
+
+void manualBoxDeleted(lv_event_t*) {
+  // Section body torn down while the keyboard was open — its textarea
+  // binding is about to go stale, so close it now (kb lives on the
+  // unrelated top layer, so this is safe to do synchronously).
+  if (ui.kb != nullptr) lv_obj_del(ui.kb);
+}
+
 void taClicked(lv_event_t* e) {
   lv_obj_t* ta = lv_event_get_current_target(e);
+  if (ui.kb != nullptr) lv_obj_del(ui.kb);
   lv_obj_t* kb = lv_keyboard_create(lv_layer_top());
   lv_keyboard_set_textarea(kb, ta);
   if (ta != ui.city) lv_keyboard_set_mode(kb, LV_KEYBOARD_MODE_NUMBER);
   lv_obj_add_event_cb(kb, kbEvent, LV_EVENT_READY, nullptr);
   lv_obj_add_event_cb(kb, kbEvent, LV_EVENT_CANCEL, nullptr);
+  lv_obj_add_event_cb(kb, kbDeleted, LV_EVENT_DELETE, nullptr);
+  ui.kb = kb;
 }
 
 lv_obj_t* makeEntry(lv_obj_t* parent, const char* placeholder,
@@ -70,9 +86,17 @@ lv_obj_t* makeEntry(lv_obj_t* parent, const char* placeholder,
 }
 
 void saveClicked(lv_event_t*) {
-  const float lat = strtof(lv_textarea_get_text(ui.lat), nullptr);
-  const float lon = strtof(lv_textarea_get_text(ui.lon), nullptr);
-  if (lat < -90.0f || lat > 90.0f || lon < -180.0f || lon > 180.0f) {
+  const char* latTxt = lv_textarea_get_text(ui.lat);
+  const char* lonTxt = lv_textarea_get_text(ui.lon);
+  char* latEnd = nullptr;
+  char* lonEnd = nullptr;
+  const float lat = strtof(latTxt, &latEnd);
+  const float lon = strtof(lonTxt, &lonEnd);
+  // strtof() accepts empty/partial input and silently returns 0.0f — reject
+  // anything that didn't fully parse as a number, not just out-of-range.
+  if (latEnd == latTxt || *latEnd != '\0' || lonEnd == lonTxt ||
+      *lonEnd != '\0' || lat < -90.0f || lat > 90.0f || lon < -180.0f ||
+      lon > 180.0f) {
     lv_label_set_text(ui.status, "Coordenadas inválidas");
     return;
   }
@@ -105,6 +129,8 @@ void buildWeatherLocationSection(lv_obj_t* parent, ISettingsStore& store) {
                       nullptr);
 
   ui.manualBox = lv_obj_create(parent);
+  lv_obj_add_event_cb(ui.manualBox, manualBoxDeleted, LV_EVENT_DELETE,
+                      nullptr);
   lv_obj_set_width(ui.manualBox, LV_PCT(100));
   lv_obj_set_height(ui.manualBox, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(ui.manualBox, LV_FLEX_FLOW_COLUMN);
