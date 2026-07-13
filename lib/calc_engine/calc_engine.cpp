@@ -1,107 +1,102 @@
 #include "calc_engine.h"
 
 #include <cstdio>
-#include <cmath>
 #include <cstdlib>
 
 namespace {
-// Longest typeable number — keeps the entry inside the 240 px display row.
-constexpr size_t kMaxEntryLen = 12;
+constexpr size_t kMaxNumberLen = 12;  // longest typeable number
+constexpr size_t kMaxExprLen = 48;    // whole-expression cap
+
+bool isOp(char c) { return c == '+' || c == '-' || c == '*' || c == '/'; }
+bool isDigitCh(char c) { return c >= '0' && c <= '9'; }
 }  // namespace
 
 void CalcEngine::digit(char d) {
   if (error_) return;
-  if (entry_.size() >= kMaxEntryLen) return;
-  if (entry_ == "0") entry_.clear();        // "0" then "5" types "5", not "05"
-  else if (entry_ == "-0") entry_ = "-";    // same, for a negated fresh entry
-  entry_ += d;
+  if (lastWasResult_) {  // typing a digit after '=' starts a fresh expression
+    expr_.clear();
+    lastWasResult_ = false;
+  }
+  if (!expr_.empty() && expr_.back() == ')') return;  // needs an operator first
+  const size_t numStart = lastNumberStart();
+  const size_t numLen = expr_.size() - numStart;
+  if (numLen >= kMaxNumberLen) return;
+  if (numLen == 1 && expr_[numStart] == '0') {  // "0" then "5" types "5"
+    expr_[numStart] = d;
+    return;
+  }
+  if (expr_.size() >= kMaxExprLen) return;
+  expr_ += d;
 }
 
 void CalcEngine::dot() {
   if (error_) return;
-  if (entry_.find('.') != std::string::npos) return;  // one dot per number
-  if (entry_.empty() || entry_ == "-") entry_ += '0'; // "." types "0."
-  if (entry_.size() >= kMaxEntryLen) return;
-  entry_ += '.';
+  if (lastWasResult_) {
+    expr_.clear();
+    lastWasResult_ = false;
+  }
+  if (!expr_.empty() && expr_.back() == ')') return;
+  const size_t numStart = lastNumberStart();
+  if (expr_.find('.', numStart) != std::string::npos) return;  // one per number
+  const bool atBoundary = (numStart == expr_.size());
+  const size_t need = atBoundary ? 2 : 1;  // "." at a boundary types "0."
+  if (expr_.size() - numStart + need > kMaxNumberLen) return;
+  if (expr_.size() + need > kMaxExprLen) return;
+  if (atBoundary) expr_ += '0';
+  expr_ += '.';
 }
 
 void CalcEngine::op(char o) {
   if (error_) return;
-  if (!entry_.empty()) {
-    if (pendingOp_ != 0) {
-      applyPending();        // classic chaining: evaluate left-to-right
-      if (error_) return;
-    } else {
-      acc_ = entryValue();
-    }
-    entry_.clear();
+  lastWasResult_ = false;  // an operator after '=' continues from the result
+  const bool unaryPos = expr_.empty() || expr_.back() == '(';
+  if (unaryPos) {  // only unary minus is valid here
+    if (o == '-' && expr_.size() < kMaxExprLen) expr_ += '-';
+    return;
   }
-  pendingOp_ = o;            // a second operator in a row replaces the first
-}
-
-void CalcEngine::equals() {
-  if (error_) return;
-  if (!entry_.empty()) {
-    if (pendingOp_ != 0) applyPending();
-    else acc_ = entryValue();
-    entry_.clear();
+  if (isOp(expr_.back())) {
+    // Don't rewrite a unary minus ("-" at start / after '(') into "+*/".
+    const bool wasUnary =
+        expr_.size() == 1 || expr_[expr_.size() - 2] == '(';
+    if (wasUnary) return;
+    expr_.back() = o;  // a second operator in a row replaces the first
+    return;
   }
-  pendingOp_ = 0;
+  if (expr_.size() >= kMaxExprLen) return;
+  expr_ += o;
 }
 
 void CalcEngine::backspace() {
-  if (error_ || entry_.empty()) return;
-  entry_.pop_back();
-  if (entry_ == "-") entry_.clear();
-}
-
-void CalcEngine::negate() {
-  if (error_) return;
-  if (entry_.empty()) {      // no entry being typed: negate the shown result
-    acc_ = -acc_;
-    return;
-  }
-  if (entry_[0] == '-') entry_.erase(0, 1);
-  else entry_.insert(0, "-");
-}
-
-void CalcEngine::percent() {
-  if (error_) return;
-  const double v = entry_.empty() ? acc_ : entryValue();
-  entry_ = format(v / 100.0);  // becomes the entry, so it chains like typed input
-}
-
-double CalcEngine::entryValue() const {
-  return std::strtod(entry_.c_str(), nullptr);  // "", "-", "." all parse as 0
-}
-
-void CalcEngine::applyPending() {
-  const double rhs = entryValue();
-  if (pendingOp_ == '/' && rhs == 0.0) {  // graceful ÷0: error state, C recovers
-    error_ = true;
-    return;
-  }
-  switch (pendingOp_) {
-    case '+': acc_ += rhs; break;
-    case '-': acc_ -= rhs; break;
-    case '*': acc_ *= rhs; break;
-    case '/': acc_ /= rhs; break;
-  }
-  pendingOp_ = 0;
-  if (!std::isfinite(acc_)) error_ = true;  // overflow → "Erro", never raw inf/nan
+  if (error_ || expr_.empty()) return;
+  expr_.pop_back();
+  lastWasResult_ = false;
 }
 
 void CalcEngine::clear() {
-  acc_ = 0.0;
-  pendingOp_ = 0;
-  entry_.clear();
+  expr_.clear();
+  lastWasResult_ = false;
   error_ = false;
 }
 
 std::string CalcEngine::display() const {
   if (error_) return "Erro";
-  if (!entry_.empty()) return entry_;
-  return format(acc_);
+  if (expr_.empty()) return "0";
+  return expr_;
+}
+
+size_t CalcEngine::lastNumberStart() const {
+  size_t i = expr_.size();
+  while (i > 0 && (isDigitCh(expr_[i - 1]) || expr_[i - 1] == '.')) --i;
+  return i;
+}
+
+int CalcEngine::unclosed(const std::string& s) {
+  int n = 0;
+  for (char c : s) {
+    if (c == '(') ++n;
+    else if (c == ')') --n;
+  }
+  return n;
 }
 
 std::string CalcEngine::format(double v) {

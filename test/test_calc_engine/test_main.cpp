@@ -1,8 +1,8 @@
 // Host-side tests for CalcEngine (pio test -e native).
 //
-// The engine is the calculator spec's flagship native-TDD module: digit
-// entry, classic left-to-right chaining, divide-by-zero/overflow error
-// states, and display formatting are all verified off-device.
+// Expression-entry engine (2026-07-13 spec): the user types a whole
+// expression; input guards keep it always-valid; = evaluates with standard
+// precedence. These tests cover the editing layer.
 #include <unity.h>
 
 #include "calc_engine.h"
@@ -30,14 +30,23 @@ static void test_leading_zero_is_replaced() {
   TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
 }
 
-static void test_dot_on_empty_entry_starts_zero_point() {
+static void test_leading_zero_replaced_inside_expression() {
+  CalcEngine e;
+  e.digit('1');
+  e.op('+');
+  e.digit('0');
+  e.digit('7');
+  TEST_ASSERT_EQUAL_STRING("1+7", e.display().c_str());
+}
+
+static void test_dot_at_boundary_starts_zero_point() {
   CalcEngine e;
   e.dot();
   e.digit('5');
   TEST_ASSERT_EQUAL_STRING("0.5", e.display().c_str());
 }
 
-static void test_second_dot_is_ignored() {
+static void test_second_dot_in_same_number_ignored() {
   CalcEngine e;
   e.digit('1');
   e.dot();
@@ -47,276 +56,114 @@ static void test_second_dot_is_ignored() {
   TEST_ASSERT_EQUAL_STRING("1.52", e.display().c_str());
 }
 
-static void test_entry_capped_at_12_chars() {
+static void test_dot_allowed_in_each_number() {
   CalcEngine e;
-  for (int i = 0; i < 15; ++i) e.digit('9');
-  TEST_ASSERT_EQUAL_STRING("999999999999", e.display().c_str());  // 12 nines
-}
-
-static void test_clear_resets_entry() {
-  CalcEngine e;
-  e.digit('4');
+  e.digit('1');
+  e.dot();
+  e.digit('5');
+  e.op('+');
+  e.dot();  // boundary after '+' -> "0."
   e.digit('2');
-  e.clear();
-  TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
+  TEST_ASSERT_EQUAL_STRING("1.5+0.2", e.display().c_str());
 }
 
-static void test_addition() {
+static void test_op_appends_to_expression() {
   CalcEngine e;
+  e.digit('1');
   e.digit('2');
   e.op('+');
   e.digit('3');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
-}
-
-static void test_subtraction() {
-  CalcEngine e;
-  e.digit('9');
-  e.op('-');
   e.digit('4');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
-}
-
-static void test_multiplication() {
-  CalcEngine e;
-  e.digit('6');
-  e.op('*');
-  e.digit('7');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("42", e.display().c_str());
-}
-
-static void test_division_no_trailing_zeros() {
-  CalcEngine e;
-  e.digit('7');
-  e.op('/');
-  e.digit('2');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("3.5", e.display().c_str());  // not "3.500000"
-}
-
-// The spec's own example: 2 + 3 × 4 = → 20 (left-to-right, not precedence).
-static void test_chaining_evaluates_left_to_right() {
-  CalcEngine e;
-  e.digit('2');
-  e.op('+');
-  e.digit('3');
-  e.op('*');  // evaluates 2+3 here → display shows 5
-  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
-  e.digit('4');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("20", e.display().c_str());
+  TEST_ASSERT_EQUAL_STRING("12+34", e.display().c_str());
 }
 
 static void test_second_operator_replaces_first() {
   CalcEngine e;
-  e.digit('6');
-  e.op('+');
-  e.op('*');  // changed my mind: multiply, not add
-  e.digit('7');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("42", e.display().c_str());
-}
-
-static void test_continue_from_result() {
-  CalcEngine e;
+  e.digit('1');
   e.digit('2');
   e.op('+');
-  e.digit('3');
-  e.equals();  // 5
+  e.op('*');
+  TEST_ASSERT_EQUAL_STRING("12*", e.display().c_str());
+}
+
+static void test_unary_minus_at_start() {
+  CalcEngine e;
+  e.op('-');
+  e.digit('5');
+  TEST_ASSERT_EQUAL_STRING("-5", e.display().c_str());
+}
+
+static void test_non_minus_op_at_start_ignored() {
+  CalcEngine e;
   e.op('+');
-  e.digit('4');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("9", e.display().c_str());
-}
-
-static void test_equals_without_operator_keeps_entry() {
-  CalcEngine e;
-  e.digit('5');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
-}
-
-static void test_integer_result_has_no_decimals() {
-  CalcEngine e;
-  e.digit('8');
+  e.op('*');
   e.op('/');
-  e.digit('4');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("2", e.display().c_str());  // not "2.000000"
-}
-
-static void test_double_noise_rounded_away() {
-  CalcEngine e;
-  e.dot(); e.digit('1');   // 0.1
-  e.op('+');
-  e.dot(); e.digit('2');   // 0.2
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("0.3", e.display().c_str());  // not 0.30000000000000004
-}
-
-static void test_divide_by_zero_shows_error() {
-  CalcEngine e;
-  e.digit('5');
-  e.op('/');
-  e.digit('0');
-  e.equals();
-  TEST_ASSERT_TRUE(e.inError());
-  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());  // never raw inf/nan
-}
-
-static void test_divide_by_zero_via_chaining() {
-  CalcEngine e;
-  e.digit('5');
-  e.op('/');
-  e.digit('0');
-  e.op('+');  // the chained evaluation happens here
-  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
-}
-
-static void test_error_state_ignores_keys() {
-  CalcEngine e;
-  e.digit('5');
-  e.op('/');
-  e.digit('0');
-  e.equals();
-  e.digit('7');
-  e.dot();
-  e.op('+');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
-}
-
-static void test_clear_recovers_from_error() {
-  CalcEngine e;
-  e.digit('5');
-  e.op('/');
-  e.digit('0');
-  e.equals();
-  e.clear();
-  TEST_ASSERT_FALSE(e.inError());
   TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
+}
+
+static void test_unary_minus_not_replaced_by_other_op() {
+  CalcEngine e;
+  e.op('-');
+  e.op('+');  // would make "+" a leading operator — ignored
+  TEST_ASSERT_EQUAL_STRING("-", e.display().c_str());
+}
+
+static void test_number_capped_at_12_chars() {
+  CalcEngine e;
   e.digit('1');
   e.op('+');
-  e.digit('1');
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("2", e.display().c_str());  // fully functional again
+  for (int i = 0; i < 15; ++i) e.digit('9');
+  TEST_ASSERT_EQUAL_STRING("1+999999999999", e.display().c_str());  // 12 nines
 }
 
-static void test_overflow_sets_error_not_inf() {
+static void test_dot_counts_toward_number_cap() {
   CalcEngine e;
-  for (int i = 0; i < 12; ++i) e.digit('9');       // ~1e12
-  for (int round = 0; round < 30 && !e.inError(); ++round) {
-    e.op('*');
-    for (int i = 0; i < 12; ++i) e.digit('9');     // ×~1e12 per round → inf ~round 25
-    e.equals();
-  }
-  TEST_ASSERT_TRUE(e.inError());
-  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
+  for (int i = 0; i < 11; ++i) e.digit('9');
+  e.dot();                      // 12th char of the number
+  e.digit('5');                 // would be 13th — ignored
+  TEST_ASSERT_EQUAL_STRING("99999999999.", e.display().c_str());
 }
 
-static void test_backspace_removes_last_char() {
+static void test_expression_capped_at_48_chars() {
+  CalcEngine e;
+  // "1+1+1+..." — 24 "1+" pairs = 48 chars ending in '+'.
+  for (int i = 0; i < 24; ++i) {
+    e.digit('1');
+    e.op('+');
+  }
+  TEST_ASSERT_EQUAL_UINT32(48, (uint32_t)e.display().size());
+  e.digit('9');  // 49th char — ignored
+  TEST_ASSERT_EQUAL_UINT32(48, (uint32_t)e.display().size());
+}
+
+static void test_backspace_deletes_across_tokens() {
   CalcEngine e;
   e.digit('1');
   e.digit('2');
-  e.digit('3');
+  e.op('+');
   e.backspace();
   TEST_ASSERT_EQUAL_STRING("12", e.display().c_str());
+  e.backspace();
+  TEST_ASSERT_EQUAL_STRING("1", e.display().c_str());
 }
 
 static void test_backspace_to_empty_shows_zero() {
   CalcEngine e;
-  e.digit('5');
+  e.digit('7');
   e.backspace();
+  TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
+  e.backspace();  // already empty — no-op
   TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
 }
 
-static void test_backspace_only_edits_typed_entry() {
-  CalcEngine e;
-  e.digit('2');
-  e.op('+');
-  e.digit('3');
-  e.equals();      // result 5 is not a typed entry
-  e.backspace();   // ignored
-  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
-}
-
-static void test_negate_toggles_entry_sign() {
+static void test_clear_resets_expression() {
   CalcEngine e;
   e.digit('4');
-  e.digit('2');
-  e.negate();
-  TEST_ASSERT_EQUAL_STRING("-42", e.display().c_str());
-  e.negate();
-  TEST_ASSERT_EQUAL_STRING("42", e.display().c_str());
-}
-
-static void test_negate_applies_to_result() {
-  CalcEngine e;
-  e.digit('2');
   e.op('+');
-  e.digit('3');
-  e.equals();
-  e.negate();
-  TEST_ASSERT_EQUAL_STRING("-5", e.display().c_str());
-}
-
-static void test_negate_never_displays_minus_zero() {
-  CalcEngine e;
-  e.negate();  // negating the initial 0
+  e.digit('2');
+  e.clear();
   TEST_ASSERT_EQUAL_STRING("0", e.display().c_str());
-}
-
-static void test_negated_entry_used_in_arithmetic() {
-  CalcEngine e;
-  e.digit('5');
-  e.op('+');
-  e.digit('3');
-  e.negate();  // rhs is -3
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("2", e.display().c_str());
-}
-
-static void test_percent_divides_entry_by_100() {
-  CalcEngine e;
-  e.digit('5');
-  e.digit('0');
-  e.percent();
-  TEST_ASSERT_EQUAL_STRING("0.5", e.display().c_str());
-}
-
-static void test_percent_result_chains() {
-  CalcEngine e;
-  e.digit('2'); e.digit('0'); e.digit('0');
-  e.op('*');
-  e.digit('1'); e.digit('0');
-  e.percent();  // rhs becomes 0.1
-  e.equals();
-  TEST_ASSERT_EQUAL_STRING("20", e.display().c_str());  // 200 × 10% = 20
-}
-
-static void test_percent_applies_to_result() {
-  CalcEngine e;
-  e.digit('2');
-  e.op('+');
-  e.digit('3');
-  e.equals();  // 5
-  e.percent();
-  TEST_ASSERT_EQUAL_STRING("0.05", e.display().c_str());
-}
-
-static void test_editing_keys_ignored_in_error_state() {
-  CalcEngine e;
-  e.digit('5');
-  e.op('/');
-  e.digit('0');
-  e.equals();
-  e.backspace();
-  e.negate();
-  e.percent();
-  TEST_ASSERT_EQUAL_STRING("Erro", e.display().c_str());
+  TEST_ASSERT_FALSE(e.inError());
 }
 
 int main(int, char**) {
@@ -324,35 +171,20 @@ int main(int, char**) {
   RUN_TEST(test_starts_at_zero);
   RUN_TEST(test_digit_entry_appends);
   RUN_TEST(test_leading_zero_is_replaced);
-  RUN_TEST(test_dot_on_empty_entry_starts_zero_point);
-  RUN_TEST(test_second_dot_is_ignored);
-  RUN_TEST(test_entry_capped_at_12_chars);
-  RUN_TEST(test_clear_resets_entry);
-  RUN_TEST(test_addition);
-  RUN_TEST(test_subtraction);
-  RUN_TEST(test_multiplication);
-  RUN_TEST(test_division_no_trailing_zeros);
-  RUN_TEST(test_chaining_evaluates_left_to_right);
+  RUN_TEST(test_leading_zero_replaced_inside_expression);
+  RUN_TEST(test_dot_at_boundary_starts_zero_point);
+  RUN_TEST(test_second_dot_in_same_number_ignored);
+  RUN_TEST(test_dot_allowed_in_each_number);
+  RUN_TEST(test_op_appends_to_expression);
   RUN_TEST(test_second_operator_replaces_first);
-  RUN_TEST(test_continue_from_result);
-  RUN_TEST(test_equals_without_operator_keeps_entry);
-  RUN_TEST(test_integer_result_has_no_decimals);
-  RUN_TEST(test_double_noise_rounded_away);
-  RUN_TEST(test_divide_by_zero_shows_error);
-  RUN_TEST(test_divide_by_zero_via_chaining);
-  RUN_TEST(test_error_state_ignores_keys);
-  RUN_TEST(test_clear_recovers_from_error);
-  RUN_TEST(test_overflow_sets_error_not_inf);
-  RUN_TEST(test_backspace_removes_last_char);
+  RUN_TEST(test_unary_minus_at_start);
+  RUN_TEST(test_non_minus_op_at_start_ignored);
+  RUN_TEST(test_unary_minus_not_replaced_by_other_op);
+  RUN_TEST(test_number_capped_at_12_chars);
+  RUN_TEST(test_dot_counts_toward_number_cap);
+  RUN_TEST(test_expression_capped_at_48_chars);
+  RUN_TEST(test_backspace_deletes_across_tokens);
   RUN_TEST(test_backspace_to_empty_shows_zero);
-  RUN_TEST(test_backspace_only_edits_typed_entry);
-  RUN_TEST(test_negate_toggles_entry_sign);
-  RUN_TEST(test_negate_applies_to_result);
-  RUN_TEST(test_negate_never_displays_minus_zero);
-  RUN_TEST(test_negated_entry_used_in_arithmetic);
-  RUN_TEST(test_percent_divides_entry_by_100);
-  RUN_TEST(test_percent_result_chains);
-  RUN_TEST(test_percent_applies_to_result);
-  RUN_TEST(test_editing_keys_ignored_in_error_state);
+  RUN_TEST(test_clear_resets_expression);
   return UNITY_END();
 }

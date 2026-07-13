@@ -1,33 +1,33 @@
-// lib/calc_engine/calc_engine.h — pure calculator state machine (roadmap §3,
-// A1). std C++17 only, zero Arduino/LVGL includes. The UI wrapper feeds keys
-// in and renders display(); all behavior is native-tested.
+// lib/calc_engine/calc_engine.h — pure calculator expression engine
+// (roadmap §3, A1 + 2026-07-13 expression-entry spec). std C++17 only,
+// zero Arduino/LVGL includes. The UI wrapper feeds keys in and renders
+// display(); all behavior is native-tested.
 //
-// Classic pocket-calculator semantics: operations chain left-to-right as
-// entered (2 + 3 × 4 = evaluates as (2+3)×4 = 20 — no precedence).
+// The user types a whole expression (e.g. "(10+20)/3"); input guards keep
+// it always-valid-so-far; equals() evaluates with standard precedence.
 #pragma once
 
 #include <string>
 
 class CalcEngine {
  public:
-  void digit(char d);        // '0'..'9'
-  void dot();                // decimal point (one per number)
-  void clear();              // C — full reset; the only way out of error state
-  void op(char o);           // '+', '-', '*', '/' — chains left-to-right
-  void equals();
-  void backspace();          // ⌫ — edits the number being typed; else ignored
-  void negate();             // +/- — toggles entry sign, or negates the result
-  void percent();            // current value ÷ 100, becomes the entry
+  void digit(char d);   // '0'..'9'
+  void dot();           // decimal point (one per number)
+  void op(char o);      // '+', '-', '*', '/'; '-' also unary at start/after '('
+  void paren();         // smart key: inserts '(' or ')' based on context
+  void percent();       // rewrites the trailing number to value/100
+  void equals();        // evaluate; result becomes the expression
+  void backspace();     // deletes the last character
+  void clear();         // C — full reset; the only way out of error state
   std::string display() const;
   bool inError() const { return error_; }
 
  private:
-  double entryValue() const;
-  void applyPending();       // acc_ = acc_ <pendingOp_> entry; clears the op
+  size_t lastNumberStart() const;              // index where the trailing number begins
+  static int unclosed(const std::string& s);   // '(' minus ')' count
   static std::string format(double v);
 
-  double acc_ = 0.0;         // running result (left operand)
-  char pendingOp_ = 0;       // '+', '-', '*', '/'; 0 = none
-  std::string entry_;        // number being typed; empty = display shows acc_
-  bool error_ = false;       // divide-by-zero / overflow; display() = "Erro"
+  std::string expr_;            // expression as typed; ASCII ops + - * / ( )
+  bool lastWasResult_ = false;  // after '=': op continues, digit starts fresh
+  bool error_ = false;          // ÷0 / non-finite; display() = "Erro"
 };
