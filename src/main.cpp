@@ -9,6 +9,7 @@
 #include "apps/calculator/CalculatorApp.h"
 #include "apps/oracle/OracleApp.h"
 #include "apps/settings/SettingsApp.h"
+#include "apps/weather/WeatherApp.h"
 #include "apps/weather/WeatherFetch.h"
 #include "core/Launcher.h"
 #include "core/StatusBar.h"
@@ -35,7 +36,7 @@ static TimeService timeService(radioManager, wifiService, settings);
 
 // Grid order = registration order (roadmap §4.5); ids pinned by App::id() docs.
 // Names + icons are edited in src/apps/app_catalog.h, never here.
-static StubApp weatherStub("weather", catalog::kWeather);
+static WeatherApp weatherApp;
 static StubApp musicStub("music", catalog::kMusic);
 static CalculatorApp calculatorApp;
 static OracleApp oracleApp;
@@ -121,7 +122,8 @@ void setup() {
   // Register the LVGL 'S:' drive so app icons/art load from SD (roadmap 4.1).
   if (sdOk) lvglFsRegisterSd();
 
-  launcher.registerApp(&weatherStub);
+  weatherApp.setDeps(settings, wifiService, timeService, storage);
+  launcher.registerApp(&weatherApp);
   launcher.registerApp(&musicStub);
   launcher.registerApp(&calculatorApp);
   oracleApp.setDeps(storage, timeService);
