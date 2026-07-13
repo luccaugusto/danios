@@ -8,7 +8,8 @@ namespace {
 SettingsApp* g_self = nullptr;  // single instance, owned by main.cpp
 
 // F4/F5/A3 sections append here and to the switch in showSection.
-const char* kSectionNames[] = {"Tela", "Unidades", "Sobre", "WiFi", "Relógio"};
+const char* kSectionNames[] = {"Tela",    "Unidades", "Sobre",
+                               "WiFi",    "Relógio",  "Local do clima"};
 constexpr int kSectionCount =
     static_cast<int>(sizeof(kSectionNames) / sizeof(kSectionNames[0]));
 }  // namespace
@@ -80,6 +81,9 @@ void SettingsApp::showSection(int idx) {
       break;
     case 4:
       buildClockSection(body, *time_);  // Task 7
+      break;
+    case 5:
+      buildWeatherLocationSection(body, *store_);
       break;
     default:
       break;

@@ -16,3 +16,4 @@ void buildUnitsSection(lv_obj_t* parent, ISettingsStore& store);      // Task 8
 void buildAboutSection(lv_obj_t* parent, StorageService& storage);    // Task 9
 void buildWifiSection(lv_obj_t* parent, RadioManager& radio, WiFiService& wifi);
 void buildClockSection(lv_obj_t* parent, TimeService& time);  // Task 7
+void buildWeatherLocationSection(lv_obj_t* parent, ISettingsStore& store);  // A3
