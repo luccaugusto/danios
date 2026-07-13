@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!--
+    Pocket calculator (calculadora), centered in a 64x64 viewBox, transparent
+    background. Geometry: rounded-rect body (14..50 x 8..56, rx=4) with the
+    display window (18..46 x 12..22) and a 3x4 button grid (cols x=18/28.5/39
+    w=7; rows y=26/33/40/47 h=5) cut via fill-rule=evenodd — real
+    transparency, not colored insets. No strokes, no gradients, no text.
+
+    Fill is the settings gear's #5A7DA0 hue-rotated to green (#6FA05A) so the
+    icon set stays one family while apps remain tellable apart at 64 px.
+    Coordinates are explicit grid math (28-wide keypad region, 3.5 px column
+    gaps, 2 px row gaps), not hand-drawn. See assets/icons/svg_to_lvgl_bin.py
+    for the SVG -> LVGL .bin conversion pipeline.
+  -->
+  <path
+    fill="#6FA05A"
+    fill-rule="evenodd"
+    d="M 18,8 L 46,8 A 4,4 0 0 1 50,12 L 50,52 A 4,4 0 0 1 46,56 L 18,56 A 4,4 0 0 1 14,52 L 14,12 A 4,4 0 0 1 18,8 Z
+       M 18,12 L 46,12 L 46,22 L 18,22 Z
+       M 18,26 L 25,26 L 25,31 L 18,31 Z
+       M 28.5,26 L 35.5,26 L 35.5,31 L 28.5,31 Z
+       M 39,26 L 46,26 L 46,31 L 39,31 Z
+       M 18,33 L 25,33 L 25,38 L 18,38 Z
+       M 28.5,33 L 35.5,33 L 35.5,38 L 28.5,38 Z
+       M 39,33 L 46,33 L 46,38 L 39,38 Z
+       M 18,40 L 25,40 L 25,45 L 18,45 Z
+       M 28.5,40 L 35.5,40 L 35.5,45 L 28.5,45 Z
+       M 39,40 L 46,40 L 46,45 L 39,45 Z
+       M 18,47 L 25,47 L 25,52 L 18,52 Z
+       M 28.5,47 L 35.5,47 L 35.5,52 L 28.5,52 Z
+       M 39,47 L 46,47 L 46,52 L 39,52 Z" />
+</svg>
