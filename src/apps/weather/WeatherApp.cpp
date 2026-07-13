@@ -36,11 +36,13 @@ lv_obj_t* makeArtSlot(lv_obj_t* parent, StorageService& storage,
   return img;
 }
 
-// White-backed label so readings stay legible over any background art.
+// White-backed label so readings stay legible over any background art
+// (black text — the dark theme's white default vanishes on the white pill).
 lv_obj_t* makeReadout(lv_obj_t* parent) {
   lv_obj_t* lbl = lv_label_create(parent);
   lv_obj_set_style_bg_color(lbl, lv_color_white(), 0);
   lv_obj_set_style_bg_opa(lbl, LV_OPA_70, 0);
+  lv_obj_set_style_text_color(lbl, lv_color_black(), 0);
   lv_obj_set_style_pad_hor(lbl, 4, 0);
   lv_obj_set_style_radius(lbl, 4, 0);
   return lbl;
@@ -108,7 +110,7 @@ void WeatherApp::render(const ForecastWx& f, bool stale) {
 
   // Background fills the whole 240x288 app container.
   lv_obj_t* bg = makeArtSlot(root_, *storage_, art.background, 240, 288,
-                             lv_palette_lighten(LV_PALETTE_BLUE, 4));
+                             lv_color_white());
   lv_obj_set_pos(bg, 0, 0);
   lv_obj_set_style_radius(bg, 0, 0);
 
@@ -150,6 +152,7 @@ void WeatherApp::render(const ForecastWx& f, bool stale) {
                         LV_FLEX_ALIGN_CENTER);
   for (int i = 0; i < f.dayCount; ++i) {
     lv_obj_t* day = lv_label_create(row);
+    lv_obj_set_style_text_color(day, lv_color_black(), 0);
     lv_obj_set_style_text_align(day, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text_fmt(day, "%s\n%s\n%d°/%d°", kDayNames[i],
                           conditionLabelPt(conditionFromWmo(f.days[i].wmoCode)),
