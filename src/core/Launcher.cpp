@@ -133,6 +133,10 @@ void Launcher::rebuildGrid() {
     if (icon && !lvglFsExists(icon)) icon = nullptr;  // missing art -> fallback tile
     if (icon != nullptr) {
       // F3+: hand-drawn icon from SD via the LVGL FS driver (drive 'S').
+      // White tile behind the art — the theme's default blue button drowns
+      // the icon colors (icons are drawn for a light background).
+      lv_obj_set_style_bg_color(btn, lv_color_white(), 0);
+      lv_obj_set_style_radius(btn, 12, 0);  // match the fallback tile
       lv_obj_t* img = lv_img_create(btn);
       lv_img_set_src(img, icon);
       lv_obj_center(img);
