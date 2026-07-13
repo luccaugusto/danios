@@ -1,6 +1,7 @@
 #include "apps/calculator/CalculatorApp.h"
 
 #include <cstring>
+#include <string>
 
 namespace {
 
@@ -12,7 +13,7 @@ const char* kKeypadMap[] = {
     "7", "8", "9", "×", "\n",
     "4", "5", "6", "-", "\n",
     "1", "2", "3", "+", "\n",
-    "+/-", "0", ".", "=", ""};
+    "()", "0", ".", "=", ""};
 
 constexpr lv_coord_t kDisplayH = 56;  // readout strip; keypad fills the rest
 
@@ -54,12 +55,22 @@ void CalculatorApp::handleKey(const char* t) {
   else if (std::strcmp(t, "=") == 0) engine_.equals();
   else if (std::strcmp(t, "C") == 0) engine_.clear();
   else if (std::strcmp(t, LV_SYMBOL_BACKSPACE) == 0) engine_.backspace();
-  else if (std::strcmp(t, "+/-") == 0) engine_.negate();
+  else if (std::strcmp(t, "()") == 0) engine_.paren();
   else if (std::strcmp(t, "%") == 0) engine_.percent();
   refresh();
 }
 
 void CalculatorApp::refresh() {
   if (displayLabel_ == nullptr) return;
-  lv_label_set_text(displayLabel_, engine_.display().c_str());
+  // Engine strings are ASCII; render '*' and '/' with the keypad's glyphs
+  // (U+00D7 / U+00F7, both in montserrat_pt_14's Latin-1 range).
+  const std::string raw = engine_.display();
+  std::string out;
+  out.reserve(raw.size() * 2);
+  for (char c : raw) {
+    if (c == '*') out += "\xC3\x97";       // ×
+    else if (c == '/') out += "\xC3\xB7";  // ÷
+    else out += c;
+  }
+  lv_label_set_text(displayLabel_, out.c_str());
 }
