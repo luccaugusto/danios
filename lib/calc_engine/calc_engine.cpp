@@ -66,6 +66,36 @@ void CalcEngine::op(char o) {
   expr_ += o;
 }
 
+void CalcEngine::paren() {
+  if (error_) return;
+  if (lastWasResult_) {  // '(' after '=' starts a fresh expression
+    expr_.clear();
+    lastWasResult_ = false;
+  }
+  if (expr_.size() >= kMaxExprLen) return;
+  const char last = expr_.empty() ? '\0' : expr_.back();
+  if (expr_.empty() || isOp(last) || last == '(') {
+    expr_ += '(';
+    return;
+  }
+  if (unclosed(expr_) > 0 && (isDigitCh(last) || last == '.' || last == ')'))
+    expr_ += ')';
+  // Anything else (e.g. '(' straight after a digit): ignored — implicit
+  // multiplication is not supported.
+}
+
+void CalcEngine::percent() {
+  if (error_ || expr_.empty()) return;
+  const char last = expr_.back();
+  if (!isDigitCh(last) && last != '.') return;  // must end in a number
+  const size_t numStart = lastNumberStart();
+  const double v = std::strtod(expr_.c_str() + numStart, nullptr);
+  const std::string repl = format(v / 100.0);
+  if (numStart + repl.size() > kMaxExprLen) return;
+  expr_.replace(numStart, expr_.size() - numStart, repl);
+  lastWasResult_ = false;
+}
+
 void CalcEngine::backspace() {
   if (error_ || expr_.empty()) return;
   expr_.pop_back();

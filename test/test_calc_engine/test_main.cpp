@@ -166,6 +166,130 @@ static void test_clear_resets_expression() {
   TEST_ASSERT_FALSE(e.inError());
 }
 
+static void test_paren_opens_at_start() {
+  CalcEngine e;
+  e.paren();
+  TEST_ASSERT_EQUAL_STRING("(", e.display().c_str());
+}
+
+static void test_paren_opens_after_operator() {
+  CalcEngine e;
+  e.digit('2');
+  e.op('*');
+  e.paren();
+  TEST_ASSERT_EQUAL_STRING("2*(", e.display().c_str());
+}
+
+static void test_paren_opens_after_open_paren() {
+  CalcEngine e;
+  e.paren();
+  e.paren();
+  TEST_ASSERT_EQUAL_STRING("((", e.display().c_str());
+}
+
+static void test_paren_closes_after_number_when_unclosed() {
+  CalcEngine e;
+  e.paren();
+  e.digit('5');
+  e.paren();
+  TEST_ASSERT_EQUAL_STRING("(5)", e.display().c_str());
+}
+
+static void test_paren_after_number_without_open_ignored() {
+  CalcEngine e;
+  e.digit('5');
+  e.paren();  // nothing to close, '(' after a digit is invalid — ignored
+  TEST_ASSERT_EQUAL_STRING("5", e.display().c_str());
+}
+
+static void test_paren_closes_nested_groups() {
+  CalcEngine e;
+  e.paren();
+  e.paren();
+  e.digit('2');
+  e.paren();
+  e.paren();
+  TEST_ASSERT_EQUAL_STRING("((2))", e.display().c_str());
+}
+
+static void test_digit_after_close_paren_ignored() {
+  CalcEngine e;
+  e.paren();
+  e.digit('5');
+  e.paren();
+  e.digit('7');  // ")7" is invalid — an operator is required first
+  TEST_ASSERT_EQUAL_STRING("(5)", e.display().c_str());
+}
+
+static void test_dot_after_close_paren_ignored() {
+  CalcEngine e;
+  e.paren();
+  e.digit('5');
+  e.paren();
+  e.dot();
+  TEST_ASSERT_EQUAL_STRING("(5)", e.display().c_str());
+}
+
+static void test_unary_minus_after_open_paren() {
+  CalcEngine e;
+  e.paren();
+  e.op('-');
+  e.digit('3');
+  TEST_ASSERT_EQUAL_STRING("(-3", e.display().c_str());
+}
+
+static void test_non_minus_op_after_open_paren_ignored() {
+  CalcEngine e;
+  e.paren();
+  e.op('+');
+  TEST_ASSERT_EQUAL_STRING("(", e.display().c_str());
+}
+
+static void test_unary_minus_after_paren_not_replaced() {
+  CalcEngine e;
+  e.paren();
+  e.op('-');
+  e.op('*');  // "(*" would be invalid — ignored
+  TEST_ASSERT_EQUAL_STRING("(-", e.display().c_str());
+}
+
+static void test_percent_rewrites_trailing_number() {
+  CalcEngine e;
+  e.digit('5');
+  e.digit('0');
+  e.percent();
+  TEST_ASSERT_EQUAL_STRING("0.5", e.display().c_str());
+}
+
+static void test_percent_only_touches_trailing_number() {
+  CalcEngine e;
+  e.digit('2');
+  e.digit('0');
+  e.digit('0');
+  e.op('*');
+  e.digit('1');
+  e.digit('0');
+  e.percent();
+  TEST_ASSERT_EQUAL_STRING("200*0.1", e.display().c_str());
+}
+
+static void test_percent_ignored_after_operator() {
+  CalcEngine e;
+  e.digit('5');
+  e.op('+');
+  e.percent();
+  TEST_ASSERT_EQUAL_STRING("5+", e.display().c_str());
+}
+
+static void test_percent_ignored_after_close_paren() {
+  CalcEngine e;
+  e.paren();
+  e.digit('5');
+  e.paren();
+  e.percent();
+  TEST_ASSERT_EQUAL_STRING("(5)", e.display().c_str());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_starts_at_zero);
@@ -186,5 +310,20 @@ int main(int, char**) {
   RUN_TEST(test_backspace_deletes_across_tokens);
   RUN_TEST(test_backspace_to_empty_shows_zero);
   RUN_TEST(test_clear_resets_expression);
+  RUN_TEST(test_paren_opens_at_start);
+  RUN_TEST(test_paren_opens_after_operator);
+  RUN_TEST(test_paren_opens_after_open_paren);
+  RUN_TEST(test_paren_closes_after_number_when_unclosed);
+  RUN_TEST(test_paren_after_number_without_open_ignored);
+  RUN_TEST(test_paren_closes_nested_groups);
+  RUN_TEST(test_digit_after_close_paren_ignored);
+  RUN_TEST(test_dot_after_close_paren_ignored);
+  RUN_TEST(test_unary_minus_after_open_paren);
+  RUN_TEST(test_non_minus_op_after_open_paren_ignored);
+  RUN_TEST(test_unary_minus_after_paren_not_replaced);
+  RUN_TEST(test_percent_rewrites_trailing_number);
+  RUN_TEST(test_percent_only_touches_trailing_number);
+  RUN_TEST(test_percent_ignored_after_operator);
+  RUN_TEST(test_percent_ignored_after_close_paren);
   return UNITY_END();
 }
