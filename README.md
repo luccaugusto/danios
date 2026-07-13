@@ -122,3 +122,9 @@ Design is approved and hardware is in hand. Pick up at either:
    (milestone 0 = toolchain + display bring-up, then up the layers).
 2. **Get the board alive first** — install PlatformIO, wire up the CYD display
    config, flash the "hello" sketch, then plan the rest.
+
+---
+
+## TODO
+
+- [ ] draw the images for weather app
