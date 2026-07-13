@@ -96,6 +96,97 @@ static void test_condition_unknown_codes() {
   assertCond(Condition::Unknown, 100);
 }
 
+static void test_celsius_passthrough() {
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 20.0f, toDisplayTemp(20.0f, false));
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, -3.5f, toDisplayTemp(-3.5f, false));
+}
+
+static void test_fahrenheit_conversion() {
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 32.0f, toDisplayTemp(0.0f, true));
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, 212.0f, toDisplayTemp(100.0f, true));
+  TEST_ASSERT_FLOAT_WITHIN(0.001f, -40.0f, toDisplayTemp(-40.0f, true));
+}
+
+static void test_condition_labels_pt() {
+  TEST_ASSERT_EQUAL_STRING("Ensolarado", conditionLabelPt(Condition::Clear));
+  TEST_ASSERT_EQUAL_STRING("Nublado", conditionLabelPt(Condition::Cloudy));
+  TEST_ASSERT_EQUAL_STRING("Neblina", conditionLabelPt(Condition::Fog));
+  TEST_ASSERT_EQUAL_STRING("Chuva", conditionLabelPt(Condition::Rain));
+  TEST_ASSERT_EQUAL_STRING("Neve", conditionLabelPt(Condition::Snow));
+  TEST_ASSERT_EQUAL_STRING("Tempestade", conditionLabelPt(Condition::Storm));
+  TEST_ASSERT_EQUAL_STRING("--", conditionLabelPt(Condition::Unknown));
+}
+
+static void test_art_outfit_per_band() {
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/outfit_freezing.bin",
+      artSlots(TempBand::Freezing, Condition::Snow, true).outfit);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/outfit_cold.bin",
+      artSlots(TempBand::Cold, Condition::Cloudy, true).outfit);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/outfit_mild.bin",
+      artSlots(TempBand::Mild, Condition::Clear, true).outfit);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/outfit_warm.bin",
+      artSlots(TempBand::Warm, Condition::Rain, true).outfit);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/outfit_hot.bin",
+      artSlots(TempBand::Hot, Condition::Clear, true).outfit);
+}
+
+static void test_art_overlay_per_condition() {
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/ov_sunglasses.bin",
+      artSlots(TempBand::Hot, Condition::Clear, true).overlay);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/ov_umbrella.bin",
+      artSlots(TempBand::Mild, Condition::Rain, true).overlay);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/ov_umbrella.bin",
+      artSlots(TempBand::Warm, Condition::Storm, true).overlay);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/ov_scarf.bin",
+      artSlots(TempBand::Freezing, Condition::Snow, true).overlay);
+  TEST_ASSERT_NULL(artSlots(TempBand::Mild, Condition::Cloudy, true).overlay);
+  TEST_ASSERT_NULL(artSlots(TempBand::Mild, Condition::Fog, true).overlay);
+}
+
+static void test_art_background_per_condition() {
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/bg_clear.bin",
+      artSlots(TempBand::Warm, Condition::Clear, true).background);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/bg_cloudy.bin",
+      artSlots(TempBand::Warm, Condition::Cloudy, true).background);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/bg_fog.bin",
+      artSlots(TempBand::Warm, Condition::Fog, true).background);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/bg_rain.bin",
+      artSlots(TempBand::Warm, Condition::Rain, true).background);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/bg_snow.bin",
+      artSlots(TempBand::Cold, Condition::Snow, true).background);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/bg_storm.bin",
+      artSlots(TempBand::Warm, Condition::Storm, true).background);
+}
+
+static void test_art_clear_night_variant() {
+  // is_day polish (spec): night gets its own clear sky, and no sunglasses.
+  const ArtSlots night = artSlots(TempBand::Mild, Condition::Clear, false);
+  TEST_ASSERT_EQUAL_STRING("S:/art/weather/bg_clear_night.bin", night.background);
+  TEST_ASSERT_NULL(night.overlay);
+}
+
+static void test_art_unknown_condition_has_no_slots() {
+  const ArtSlots s = artSlots(TempBand::Mild, Condition::Unknown, true);
+  TEST_ASSERT_EQUAL_STRING("S:/art/weather/outfit_mild.bin", s.outfit);
+  TEST_ASSERT_NULL(s.overlay);
+  TEST_ASSERT_NULL(s.background);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_band_freezing_below_zero);
@@ -110,5 +201,13 @@ int main(int, char**) {
   RUN_TEST(test_condition_snow);
   RUN_TEST(test_condition_storm);
   RUN_TEST(test_condition_unknown_codes);
+  RUN_TEST(test_celsius_passthrough);
+  RUN_TEST(test_fahrenheit_conversion);
+  RUN_TEST(test_condition_labels_pt);
+  RUN_TEST(test_art_outfit_per_band);
+  RUN_TEST(test_art_overlay_per_condition);
+  RUN_TEST(test_art_background_per_condition);
+  RUN_TEST(test_art_clear_night_variant);
+  RUN_TEST(test_art_unknown_condition_has_no_slots);
   return UNITY_END();
 }

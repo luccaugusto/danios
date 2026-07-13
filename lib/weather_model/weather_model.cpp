@@ -26,3 +26,59 @@ Condition conditionFromWmo(int code) {
   }
   return Condition::Unknown;
 }
+
+float toDisplayTemp(float celsius, bool fahrenheit) {
+  return fahrenheit ? celsius * 9.0f / 5.0f + 32.0f : celsius;
+}
+
+const char* conditionLabelPt(Condition c) {
+  switch (c) {
+    case Condition::Clear:  return "Ensolarado";
+    case Condition::Cloudy: return "Nublado";
+    case Condition::Fog:    return "Neblina";
+    case Condition::Rain:   return "Chuva";
+    case Condition::Snow:   return "Neve";
+    case Condition::Storm:  return "Tempestade";
+    default:                return "--";
+  }
+}
+
+namespace {
+// Maker-tunable art table (spec "Data -> art bridge"). Indexed by TempBand.
+const char* kOutfit[] = {
+    "S:/art/weather/outfit_freezing.bin", "S:/art/weather/outfit_cold.bin",
+    "S:/art/weather/outfit_mild.bin", "S:/art/weather/outfit_warm.bin",
+    "S:/art/weather/outfit_hot.bin"};
+}  // namespace
+
+ArtSlots artSlots(TempBand band, Condition cond, bool isDay) {
+  ArtSlots s{kOutfit[static_cast<int>(band)], nullptr, nullptr};
+  switch (cond) {
+    case Condition::Clear:
+      if (isDay) s.overlay = "S:/art/weather/ov_sunglasses.bin";
+      s.background = isDay ? "S:/art/weather/bg_clear.bin"
+                           : "S:/art/weather/bg_clear_night.bin";
+      break;
+    case Condition::Cloudy:
+      s.background = "S:/art/weather/bg_cloudy.bin";
+      break;
+    case Condition::Fog:
+      s.background = "S:/art/weather/bg_fog.bin";
+      break;
+    case Condition::Rain:
+      s.overlay = "S:/art/weather/ov_umbrella.bin";
+      s.background = "S:/art/weather/bg_rain.bin";
+      break;
+    case Condition::Snow:
+      s.overlay = "S:/art/weather/ov_scarf.bin";
+      s.background = "S:/art/weather/bg_snow.bin";
+      break;
+    case Condition::Storm:
+      s.overlay = "S:/art/weather/ov_umbrella.bin";
+      s.background = "S:/art/weather/bg_storm.bin";
+      break;
+    default:
+      break;  // Unknown: plain background, no accessory
+  }
+  return s;
+}

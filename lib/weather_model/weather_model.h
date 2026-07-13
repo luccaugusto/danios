@@ -15,3 +15,20 @@ enum class Condition : uint8_t { Clear, Cloudy, Fog, Rain, Snow, Storm, Unknown 
 
 TempBand tempBand(float celsius);
 Condition conditionFromWmo(int code);
+
+// Display-only conversion (spec: storage and API stay metric). Pass the F3
+// NVS flag units.f as `fahrenheit`.
+float toDisplayTemp(float celsius, bool fahrenheit);
+
+// Portuguese condition label for on-screen text (device UI language).
+const char* conditionLabelPt(Condition c);
+
+// Which art files to show. overlay/background are nullptr when the condition
+// has no such slot (Cloudy/Fog/Unknown overlay; Unknown background). Files
+// live on the SD card; the UI renders a placeholder box when one is missing.
+struct ArtSlots {
+  const char* outfit;      // never nullptr
+  const char* overlay;     // accessory (sunglasses/umbrella/scarf) or nullptr
+  const char* background;  // scene behind the character, or nullptr = plain
+};
+ArtSlots artSlots(TempBand band, Condition cond, bool isDay);
