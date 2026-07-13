@@ -1,5 +1,6 @@
 #include "calc_engine.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -9,6 +10,64 @@ constexpr size_t kMaxExprLen = 48;    // whole-expression cap
 
 bool isOp(char c) { return c == '+' || c == '-' || c == '*' || c == '/'; }
 bool isDigitCh(char c) { return c >= '0' && c <= '9'; }
+
+// Recursive-descent evaluator (spec grammar):
+//   expression := term (('+'|'-') term)*
+//   term       := factor (('*'|'/') factor)*
+//   factor     := '-'? ( number | '(' expression ')' )
+// Input comes from the engine's own guards, so err is a backstop, not a
+// user-facing validator; ÷0 is the one expected runtime failure.
+struct Parser {
+  const char* p;
+  bool err = false;
+
+  double parseExpression() {
+    double v = parseTerm();
+    while (!err && (*p == '+' || *p == '-')) {
+      const char o = *p++;
+      const double r = parseTerm();
+      v = (o == '+') ? v + r : v - r;
+    }
+    return v;
+  }
+
+  double parseTerm() {
+    double v = parseFactor();
+    while (!err && (*p == '*' || *p == '/')) {
+      const char o = *p++;
+      const double r = parseFactor();
+      if (err) break;
+      if (o == '/' && r == 0.0) {  // graceful ÷0: error state, C recovers
+        err = true;
+        break;
+      }
+      v = (o == '*') ? v * r : v / r;
+    }
+    return v;
+  }
+
+  double parseFactor() {
+    bool neg = false;
+    if (*p == '-') {
+      neg = true;
+      ++p;
+    }
+    double v = 0.0;
+    if (*p == '(') {
+      ++p;
+      v = parseExpression();
+      if (!err && *p == ')') ++p;
+      else err = true;
+    } else if (isDigitCh(*p) || *p == '.') {
+      char* end = nullptr;
+      v = std::strtod(p, &end);
+      p = end;
+    } else {
+      err = true;
+    }
+    return neg ? -v : v;
+  }
+};
 }  // namespace
 
 void CalcEngine::digit(char d) {
@@ -94,6 +153,25 @@ void CalcEngine::percent() {
   if (numStart + repl.size() > kMaxExprLen) return;
   expr_.replace(numStart, expr_.size() - numStart, repl);
   lastWasResult_ = false;
+}
+
+void CalcEngine::equals() {
+  if (error_) return;
+  std::string s = expr_;
+  // Step 1 (spec): drop trailing operators and dangling opens.
+  while (!s.empty() && (isOp(s.back()) || s.back() == '(')) s.pop_back();
+  // Degenerate (no digits at all): no-op, expression stays as typed.
+  if (s.find_first_of("0123456789") == std::string::npos) return;
+  // Step 2: auto-close unclosed groups.
+  for (int n = unclosed(s); n > 0; --n) s += ')';
+  Parser parser{s.c_str()};
+  const double v = parser.parseExpression();
+  if (parser.err || *parser.p != '\0' || !std::isfinite(v)) {
+    error_ = true;
+    return;
+  }
+  expr_ = format(v);
+  lastWasResult_ = true;
 }
 
 void CalcEngine::backspace() {
