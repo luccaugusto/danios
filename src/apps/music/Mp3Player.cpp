@@ -11,14 +11,26 @@ constexpr size_t kMinFreeToFeed = 2 * 2304;  // room for 2 worst-case stereo
                                              // MP3 frames (1152 samples x 2 ch)
 constexpr int kMaxChunksPerFeed = 8;         // bounds tick() time; ~1 KB/tick
                                              // of MP3 easily outpaces playback
+
+// arduino-libhelix v0.8.5 never forwards setReference()'s pointer to the data
+// callback: provideResult() passes p_caller_data, which the library never
+// assigns (setReference fills the separate p_caller_ref, read only by the
+// unused info callback). So `ref` below is always null and the instance is
+// reached through this single-active-player global instead — same g_self
+// idiom as the apps. Set/cleared on the loop task; pcmCallback runs
+// synchronously inside decoder_.write() on that same task (never the BT task).
+Mp3Player* g_activePlayer = nullptr;
 }  // namespace
 
 Mp3Player::Mp3Player() : ring_(kRingSamples) {
   decoder_.setDataCallback(pcmCallback);
-  decoder_.setReference(this);
+  g_activePlayer = this;
 }
 
-Mp3Player::~Mp3Player() { close(); }
+Mp3Player::~Mp3Player() {
+  close();
+  g_activePlayer = nullptr;
+}
 
 bool Mp3Player::open(const char* path, bool flushRing) {
   close();
@@ -55,8 +67,9 @@ Mp3Player::Feed Mp3Player::feed() {
 }
 
 void Mp3Player::pcmCallback(MP3FrameInfo& info, short* pcm, size_t len,
-                            void* ref) {
-  auto* self = static_cast<Mp3Player*>(ref);
+                            void* /*ref — always null, see g_activePlayer*/) {
+  auto* self = g_activePlayer;
+  if (self == nullptr) return;
   if (info.samprate != 44100 || info.nChans < 1 || info.nChans > 2) {
     self->badFormat_ = true;  // A2DP is pinned at 44100 Hz; no resampler
     return;
