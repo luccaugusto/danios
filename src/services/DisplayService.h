@@ -40,5 +40,8 @@ private:
   LGFX tft_;
   lv_disp_draw_buf_t drawBuf_{};
   lv_disp_drv_t dispDrv_{};
-  lv_color_t buf1_[kBufPixels];
+  // Heap-allocated once in begin() (never freed — DisplayService lives the whole
+  // run). Keeping this 14.4 KB off the static dram0_0_seg segment is what leaves
+  // room for the Bluetooth host stack's static buffers to link (F5).
+  lv_color_t* buf1_ = nullptr;
 };

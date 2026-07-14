@@ -4,6 +4,8 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 
+#include "BluetoothAudioService.h"
+
 namespace {
 RadioState wanted(RadioMode mode) {
   switch (mode) {
@@ -53,7 +55,11 @@ void RadioManager::stopWiFi() {
   // F5: Bluetooth (~64 KB) may need esp_wifi_deinit() here to free enough SRAM.
 }
 
-// F5: BluetoothAudioService power hooks graft in here. Until then the BT arm
-// is a stub so request(Bluetooth) returns false with state Off (roadmap §4.6).
-bool RadioManager::startBt() { return false; }  // F5
-void RadioManager::stopBt() {}                  // F5
+// BluetoothAudioService power hooks (roadmap §4.6): setBluetoothService()
+// wires bt_ once from main.cpp; RadioManager drives BT power exclusively
+// through powerOn/powerOff.
+bool RadioManager::startBt() { return bt_ != nullptr && bt_->powerOn(); }
+
+void RadioManager::stopBt() {
+  if (bt_ != nullptr) bt_->powerOff();
+}

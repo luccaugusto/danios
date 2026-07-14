@@ -14,6 +14,7 @@
 #include "core/Launcher.h"
 #include "core/StatusBar.h"
 #include "core/Version.h"
+#include "services/BluetoothAudioService.h"
 #include "services/DisplayService.h"  // F1 API
 #include "services/LvglFs.h"
 #include "services/RadioManager.h"
@@ -33,6 +34,7 @@ StorageService storage;     // sole owner (roadmap 4.9)
 static RadioManager radioManager;  // sole owner of radio power (roadmap 4.6)
 static WiFiService wifiService(settings);
 static TimeService timeService(radioManager, wifiService, settings);
+static BluetoothAudioService btAudio(settings);
 
 // Grid order = registration order (roadmap §4.5); ids pinned by App::id() docs.
 // Names + icons are edited in src/apps/app_catalog.h, never here.
@@ -130,9 +132,10 @@ void setup() {
   launcher.registerApp(&oracleApp);
   launcher.registerApp(&petStub);
   settingsApp.setDeps(settings, displayService, storage, radioManager,
-                      wifiService, timeService);
+                      wifiService, timeService, btAudio);
   launcher.registerApp(&settingsApp);  // sixth grid icon
   launcher.setRadioRequest([](RadioMode m) { return radioManager.request(m); });
+  radioManager.setBluetoothService(&btAudio);
 
   if (!sdOk) {
     // Spec 6.5: SD-dependent apps disabled. Pet is the exception (state in

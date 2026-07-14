@@ -17,9 +17,18 @@
 #define LV_COLOR_16_SWAP 0
 
 /*==================== MEMORY ====================*/
-/* LVGL heap from internal SRAM — 48 KB per the roadmap §2 RAM budget. */
+/* LVGL heap from internal SRAM. Roadmap §2 budgeted 48 KB, but that static
+ * pool starves bluedroid on this PSRAM-less WROOM-32: esp_bluedroid_init()
+ * alone needs ~61 KB of internal DRAM, and with the 48 KB LVGL pool reserved
+ * the full app (LVGL + SD + WiFi residuals) left only ~12 KB of usable heap
+ * after BT enable — enough to scan, but the A2DP *connect* then OOM'd
+ * allocating its L2CAP/SDP control blocks and bluedroid asserted deep in its
+ * own out-of-memory cleanup (vQueueDelete on a never-created semaphore). This
+ * UI's live LVGL usage is far under 24 KB, so halving the pool hands ~24 KB
+ * back to the heap (~36 KB free after BT enable) — ample for connect. Watch
+ * for "lv_mem: couldn't allocate" if the UI ever grows; do NOT go lower. */
 #define LV_MEM_CUSTOM 0
-#define LV_MEM_SIZE (48U * 1024U)
+#define LV_MEM_SIZE (24U * 1024U)
 
 /*==================== HAL ====================*/
 /* Tick straight from Arduino millis(): no lv_tick_inc() calls anywhere. */

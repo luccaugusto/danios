@@ -1,6 +1,7 @@
 # danios app spec — Music
 
 **Extracted:** 2026-07-06 from the [master spec](../2026-06-03-esp32-gift-device-design.md) §4.2, §6.3, §6.5, §7.3, §8.
+**Revised:** 2026-07-08 — the Bluetooth connect flow moved **into this app** (open → connect → play). The former "redirect to Settings → Bluetooth" is dropped and the Settings → Bluetooth section is removed; the scan/pair/connect/forget UI now lives in `src/apps/music/BtConnectScreen`. See [the plan](../../plans/2026-07-03-app-music.md) Task 3.
 **Interfaces:** the [roadmap](../../plans/2026-07-03-danios-roadmap.md) §4 is authoritative — never rename its names/paths/keys.
 **Roadmap slot:** A4 (`lib/playlist/` reserved in roadmap §3). Depends on F3 (SD) + F5 (Bluetooth) — the last app that can start.
 
@@ -14,13 +15,17 @@ registration in `src/main.cpp`. `requiredRadio()` = `Bluetooth`.
 
 ## Flow on open
 
-1. Launcher already requested Bluetooth via `RadioManager`.
-2. Auto-connect to the **last paired device**
-   (`BluetoothAudioService::pairedAddr()`, NVS `bt.addr`).
-3. **If nothing is paired → redirect to Settings → Bluetooth** to pick a
-   device (spec §6.5 — friendly message + navigation, not a dead end).
-4. Scan `/music` on the SD card (`StorageService::listFiles("/music", ".mp3")`,
-   sorted, non-recursive) to build the playlist.
+1. Launcher already requested Bluetooth via `RadioManager` (BT is powered up for
+   the whole Music session).
+2. The app opens on an **in-app connect screen** showing the last paired device
+   (`BluetoothAudioService::pairedAddr()`, NVS `bt.addr`) with Connect/Forget and
+   a Scan button. The A2DP link is app-scoped — it drops when you leave Music —
+   so every session starts here (no silent auto-connect).
+3. **Nothing paired → scan and pair from the same screen** (no redirect out to
+   Settings). The connect screen owns scan/pair/connect/forget end-to-end.
+4. On a successful connect the screen swaps to the player and scans `/music` on
+   the SD card (`StorageService::listFiles("/music", ".mp3")`, sorted,
+   non-recursive) to build the playlist.
 
 ## Playback pipeline
 
@@ -57,6 +62,9 @@ polish. **AVRCP is a non-goal** (no control from the speaker's buttons).
   wrap, skip-on-error).
 - **Thin UI wrapper:** `src/apps/music/MusicApp.{h,cpp}` — an `App` (roadmap
   §4.5) consuming `BluetoothAudioService` (§4.10) and `StorageService` (§4.9).
+  The speaker scan/pair/connect/forget UI is factored into
+  `src/apps/music/BtConnectScreen.{h,cpp}` (relocated from the former Settings →
+  Bluetooth section, which this app removes).
 - Decoder wiring lives with the app (it owns the SD-file → PCM path), not in
   the service — the service only moves PCM frames.
 
@@ -65,7 +73,7 @@ polish. **AVRCP is a non-goal** (no control from the speaker's buttons).
 | Situation | Behavior |
 | --- | --- |
 | No music on card | Friendly empty state ("put .mp3 files in /music"). |
-| No paired device | Redirect to Settings → Bluetooth. |
+| No paired device | In-app connect screen: scan and pair a speaker (no redirect). |
 | Bad/unreadable MP3 | Skip to next track (playlist logic handles it). |
 | SD missing | App disabled in launcher (F3 wiring). |
 
