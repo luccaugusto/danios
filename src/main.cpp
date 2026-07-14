@@ -6,6 +6,7 @@
 
 #include "apps/StubApp.h"
 #include "apps/app_catalog.h"
+#include "apps/music/MusicApp.h"
 #include "apps/calculator/CalculatorApp.h"
 #include "apps/oracle/OracleApp.h"
 #include "apps/settings/SettingsApp.h"
@@ -39,7 +40,7 @@ static BluetoothAudioService btAudio(settings);
 // Grid order = registration order (roadmap §4.5); ids pinned by App::id() docs.
 // Names + icons are edited in src/apps/app_catalog.h, never here.
 static WeatherApp weatherApp;
-static StubApp musicStub("music", catalog::kMusic);
+static MusicApp musicApp(storage, btAudio);
 static CalculatorApp calculatorApp;
 static OracleApp oracleApp;
 static StubApp petStub("pet", catalog::kPet);
@@ -126,7 +127,7 @@ void setup() {
 
   weatherApp.setDeps(settings, wifiService, timeService, storage);
   launcher.registerApp(&weatherApp);
-  launcher.registerApp(&musicStub);
+  launcher.registerApp(&musicApp);
   launcher.registerApp(&calculatorApp);
   oracleApp.setDeps(storage, timeService);
   launcher.registerApp(&oracleApp);
