@@ -34,6 +34,8 @@ void MusicApp::onExit() {
   browseTracks_.clear();
   browseAlbum_.clear();
   playingPrefix_.clear();
+  playlist_.setFiles({});  // stale current/bad state must not survive re-entry
+                           // ("nothing preloads": next session starts empty)
   pendingSelect_ = pendingAlbum_ = -1;
   pendingSelectIsBrowse_ = false;
   // The launcher requests RadioMode::None after this — BT teardown is its job.
@@ -380,10 +382,16 @@ void MusicApp::asyncSelectTrack(void* userData) {
   auto* self = static_cast<MusicApp*>(userData);
   if (self->root_ == nullptr || self->player_ == nullptr) return;  // app closed
   const bool fromBrowse = self->pendingSelectIsBrowse_;
+  if (fromBrowse != (self->view_ == View::Tracks)) return;  // view changed
+                                             // between the tap and this call
   const std::string prefix =
       fromBrowse ? self->browsePrefix() : std::string("/music/");
   const std::vector<std::string>& src =
       fromBrowse ? self->browseTracks_ : self->looseTracks_;
+  if (self->pendingSelect_ < 0 ||
+      self->pendingSelect_ >= static_cast<int>(src.size())) {
+    return;  // stale row — bail BEFORE touching the playing playlist
+  }
   if (self->playingPrefix_ != prefix) {
     // Cross-album (or first-ever) selection: the tapped view's listing
     // becomes the playlist. Skip-bad state resets with it (spec: "bad" is
