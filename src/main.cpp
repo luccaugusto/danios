@@ -6,8 +6,8 @@
 
 #include "apps/StubApp.h"
 #include "apps/app_catalog.h"
-#include "apps/music/MusicApp.h"
 #include "apps/calculator/CalculatorApp.h"
+#include "apps/music/MusicApp.h"
 #include "apps/oracle/OracleApp.h"
 #include "apps/settings/SettingsApp.h"
 #include "apps/weather/WeatherApp.h"

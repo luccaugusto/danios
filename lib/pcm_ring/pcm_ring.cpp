@@ -31,12 +31,11 @@ size_t PcmRing::write(const int16_t* src, size_t n) {
 }
 
 size_t PcmRing::read(int16_t* dst, size_t n) {
-  if (clearPending_.load(std::memory_order_acquire)) {
+  if (clearPending_.exchange(false, std::memory_order_acq_rel)) {
     const size_t mark = clearMark_.load(std::memory_order_relaxed);
     if (mark > tail_.load(std::memory_order_relaxed)) {
       tail_.store(mark, std::memory_order_release);
     }
-    clearPending_.store(false, std::memory_order_release);
   }
   const size_t tail = tail_.load(std::memory_order_relaxed);
   size_t avail = head_.load(std::memory_order_acquire) - tail;

@@ -1,6 +1,7 @@
 #include "apps/music/MusicApp.h"
 
 #include <Arduino.h>  // delay() in onExit
+#include <esp_heap_caps.h>
 
 #include <cstdint>
 #include <cstdio>
@@ -13,11 +14,12 @@
 namespace {
 MusicApp* g_self = nullptr;  // single instance (same pattern as SettingsApp)
 
-// LVGL-heap guard: every list row is an lv_btn + label out of the fixed 48 KB
-// LVGL pool. Tracks beyond the cap still play (next/previous cycle through
-// the whole playlist); they just aren't tappable rows. The cap is visible in
-// the UI ("+N"), never silent.
-constexpr int kMaxListRows = 60;
+// LVGL-heap guard: every list row is an lv_btn + label out of the 24 KB LVGL
+// pool (F5 halved the budgeted 48 KB to leave headroom for bluedroid — see
+// include/lv_conf.h). Tracks beyond the cap still play (next/previous cycle
+// through the whole playlist); they just aren't tappable rows. The cap is
+// visible in the UI ("+N"), never silent.
+constexpr int kMaxListRows = 28;
 }  // namespace
 
 void MusicApp::onExit() {
@@ -66,6 +68,9 @@ void MusicApp::buildUI(lv_obj_t* parent) {
 
   // Connected: allocate the pipeline (RAM strategy) and start the player.
   if (!player_) player_.reset(new Mp3Player());
+  Serial.printf("[music] heap after pipeline: %u free, %u largest\n",
+                (unsigned)esp_get_free_heap_size(),
+                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
   bt_.setSource(&Mp3Player::sourceCallback, player_.get());
 
   buildPlayerUI();
@@ -190,6 +195,11 @@ void MusicApp::handleBadTrack() {
       return;
     }
   }
+  // Reachable synchronously from prevClicked/nextClicked (via changeTrack):
+  // this lv_obj_clean(root_) runs from inside the click handler that owns the
+  // clicked button. Safe in vendored LVGL 8.4 — event_send_core guards on the
+  // widget's deleted flag after each callback — but re-verify on any LVGL
+  // upgrade.
   showMessage(
       "Nenhuma música tocável no cartão.\n"
       "Use arquivos .mp3 de 44.1 kHz na pasta /music.");

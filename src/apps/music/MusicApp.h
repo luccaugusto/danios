@@ -54,7 +54,7 @@ class MusicApp : public App {
   StorageService& storage_;
   BluetoothAudioService& bt_;
   Playlist playlist_;
-  std::unique_ptr<Mp3Player> player_;  // ~56 KB pipeline, alive only in-app
+  std::unique_ptr<Mp3Player> player_;  // ~63 KB pipeline, alive only in-app
   int pendingSelect_ = -1;
   lv_obj_t* root_ = nullptr;
   lv_obj_t* nowPlaying_ = nullptr;

@@ -33,7 +33,7 @@ class BluetoothAudioService {
   // (true = attempt started, false = bad address). The library re-discovers
   // the target by inquiry (~13 s/cycle) before the link comes up, so callers
   // must poll isConnected() rather than expect a result here — see
-  // BluetoothSection's connectPoll. Returning connected/false synchronously
+  // BtConnectScreen's connectPoll. Returning connected/false synchronously
   // would either lie (timeout too short) or freeze the UI for ~20 s.
   bool beginConnect(const std::string& addr);
   void disconnect();

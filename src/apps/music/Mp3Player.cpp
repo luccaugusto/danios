@@ -29,7 +29,7 @@ Mp3Player::Mp3Player() : ring_(kRingSamples) {
 
 Mp3Player::~Mp3Player() {
   close();
-  g_activePlayer = nullptr;
+  if (g_activePlayer == this) g_activePlayer = nullptr;
 }
 
 bool Mp3Player::open(const char* path, bool flushRing) {
@@ -41,10 +41,15 @@ bool Mp3Player::open(const char* path, bool flushRing) {
     return false;
   }
   badFormat_ = false;
-  decoder_.begin();  // fresh sync state per track
+  if (!decoder_.begin()) {  // ~24 KB MP3InitDecoder alloc can fail (no PSRAM)
+    file_.close();
+    Serial.printf("[music] decoder alloc FAILED: %s\n", path);
+    return false;
+  }
   if (flushRing) ring_.requestClear();
-  Serial.printf("[music] open: %s (%u bytes)\n", path,
-                static_cast<unsigned>(file_.size()));
+  Serial.printf("[music] open: %s (%u bytes, heap %u)\n", path,
+                static_cast<unsigned>(file_.size()),
+                static_cast<unsigned>(esp_get_free_heap_size()));
   return true;
 }
 
