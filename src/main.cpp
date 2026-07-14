@@ -132,7 +132,7 @@ void setup() {
   launcher.registerApp(&oracleApp);
   launcher.registerApp(&petStub);
   settingsApp.setDeps(settings, displayService, storage, radioManager,
-                      wifiService, timeService, btAudio);
+                      wifiService, timeService);
   launcher.registerApp(&settingsApp);  // sixth grid icon
   launcher.setRadioRequest([](RadioMode m) { return radioManager.request(m); });
   radioManager.setBluetoothService(&btAudio);

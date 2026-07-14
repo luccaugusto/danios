@@ -12,7 +12,6 @@ class StorageService;
 class RadioManager;
 class WiFiService;
 class TimeService;
-class BluetoothAudioService;
 
 class SettingsApp : public App {
  public:
@@ -29,7 +28,7 @@ class SettingsApp : public App {
   // F3: dependency injection. Call once from main.cpp, before registerApp.
   void setDeps(ISettingsStore& store, DisplayService& display,
                StorageService& storage, RadioManager& radio, WiFiService& wifi,
-               TimeService& time, BluetoothAudioService& bt);
+               TimeService& time);
 
  private:
   void showMenu();          // the lv_list of sections
@@ -42,7 +41,6 @@ class SettingsApp : public App {
   RadioManager* radio_ = nullptr;
   WiFiService* wifi_ = nullptr;
   TimeService* time_ = nullptr;
-  BluetoothAudioService* bt_ = nullptr;
   lv_obj_t* root_ = nullptr;
   bool inSection_ = false;  // false = section menu, true = inside a section
 };

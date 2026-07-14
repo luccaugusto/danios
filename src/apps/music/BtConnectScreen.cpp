@@ -1,78 +1,35 @@
-// Settings -> Bluetooth (spec §5): scan, pick, connect, forget a speaker.
-// This is where the Music app redirects when nothing is paired (spec §4.2).
-// Also hosts the F5 E2E gate: the "Play test tone" row.
-#include <lvgl.h>
+#include "apps/music/BtConnectScreen.h"
 
-#include <cmath>
 #include <string>
 
-#include "apps/settings/Sections.h"
-#include "core/App.h"  // RadioMode
 #include "services/BluetoothAudioService.h"
-#include "services/RadioManager.h"
 
 namespace {
 struct BtUi {
-  RadioManager* radio;
   BluetoothAudioService* bt;
+  std::function<void()> onConnected;  // fired once the A2DP link is up
   lv_obj_t* status;
   lv_obj_t* list;
-  lv_obj_t* pairedRow;   // "Pareada: <addr>" + Conectar/Esquecer
-  float tonePhase;
-  lv_timer_t* toneTimer;     // pending test-tone timer, if any
+  lv_obj_t* pairedRow;       // "Pareada: <addr>" + Conectar/Esquecer
   lv_timer_t* connectTimer;  // pending async-connect poll, if any
   BtDevice connectTarget;    // device being connected (persist it on success)
   uint32_t connectStart;     // lv_tick at attempt start (for the timeout)
-  bool radioUp;              // radio.request(Bluetooth) result — gates anything
-                             // that would drive the BT stack
 };
-BtUi ui;  // one Settings screen at a time (single LVGL task) — safe
+BtUi ui;  // one Music connect screen at a time (single LVGL task) — safe
 
 void setStatus(const char* msg) {
   lv_label_set_text(ui.status, msg);
-  lv_refr_now(nullptr);  // repaint before blocking scan/connect
-}
-
-int32_t toneSource(int16_t* buf, int32_t frames, void* ctx) {
-  if (ctx == nullptr) return 0;
-  float* phase = static_cast<float*>(ctx);
-  constexpr float kStep = 2.0f * 3.14159265f * 440.0f / 44100.0f;
-  for (int32_t i = 0; i < frames; ++i) {
-    const int16_t s = static_cast<int16_t>(8000.0f * sinf(*phase));
-    buf[i * 2] = s;
-    buf[i * 2 + 1] = s;
-    *phase += kStep;
-    if (*phase > 6.2831853f) *phase -= 6.2831853f;
-  }
-  return frames;
-}
-
-void toneTimerDone(lv_timer_t* t) {
-  ui.bt->setSource(nullptr, nullptr);  // back to silence
-  ui.toneTimer = nullptr;
-  lv_timer_del(t);
-  setStatus("Tom concluído " LV_SYMBOL_OK);
-}
-
-void toneClicked(lv_event_t*) {
-  if (!ui.bt->isConnected()) {
-    setStatus("Conecte uma caixa primeiro");
-    return;
-  }
-  ui.tonePhase = 0.0f;
-  ui.bt->setSource(toneSource, &ui.tonePhase);
-  setStatus("Tocando 440 Hz...");
-  ui.toneTimer = lv_timer_create(toneTimerDone, 2000, nullptr);
+  lv_refr_now(nullptr);  // repaint before the blocking scan/connect
 }
 
 void rebuildPairedRow();
 
-// Async connect (bt->beginConnect is non-blocking). The library re-inquires
-// for ~13 s (one cycle) before it even attempts the link, and may run a second
-// cycle if the speaker isn't seen on the first — so the cutoff must clear two
-// inquiry cycles plus SDP/AVDTP setup, or a slow-to-answer speaker reads as a
-// failure. Polling isConnected() (rather than a blocking wait) keeps the UI
-// live and repainting the whole time.
+// Async connect (bt->beginConnect is non-blocking). The library re-inquires for
+// ~13 s (one cycle) before it even attempts the link, and may run a second cycle
+// if the speaker isn't seen on the first — so the cutoff must clear two inquiry
+// cycles plus SDP/AVDTP setup, or a slow-to-answer speaker reads as a failure.
+// Polling isConnected() (rather than a blocking wait) keeps the UI live and
+// repainting the whole time.
 constexpr uint32_t kConnectPollMs = 500;
 constexpr uint32_t kConnectTimeoutMs = 35000;
 
@@ -87,7 +44,9 @@ void connectPoll(lv_timer_t* t) {
     // Reconnect passes a nameless BtDevice — don't clobber the stored bt.name.
     if (!ui.connectTarget.name.empty()) ui.bt->savePaired(ui.connectTarget);
     setStatus("Conectado " LV_SYMBOL_OK);
+    auto cb = ui.onConnected;  // copy: the callback rebuilds the widget tree
     finishConnect(t);
+    if (cb) cb();  // MusicApp swaps in the player (deferred via lv_async_call)
   } else if (lv_tick_elaps(ui.connectStart) >= kConnectTimeoutMs) {
     setStatus("Não foi possível conectar");
     finishConnect(t);
@@ -95,10 +54,6 @@ void connectPoll(lv_timer_t* t) {
 }
 
 void connectTo(const BtDevice& d) {
-  if (!ui.radioUp) {
-    setStatus("Bluetooth indisponível");
-    return;
-  }
   if (ui.connectTimer != nullptr) return;  // an attempt is already in flight
   if (!ui.bt->beginConnect(d.addr)) {
     setStatus("Endereço inválido");
@@ -136,11 +91,11 @@ void scanClicked(lv_event_t*) {
         },
         LV_EVENT_DELETE, owned);
   }
-  setStatus("Toque numa caixa para parear");
+  setStatus("Toque numa caixa para conectar");
 }
 
 void reconnectClicked(lv_event_t*) {
-  BtDevice d{"", ui.bt->pairedAddr()};
+  BtDevice d{"", ui.bt->pairedAddr()};  // fast reconnect by addr (no re-pair)
   connectTo(d);
 }
 
@@ -168,7 +123,6 @@ void rebuildPairedRow() {
   lv_obj_t* conn = lv_btn_create(ui.pairedRow);
   lv_label_set_text(lv_label_create(conn), "Conectar");
   lv_obj_add_event_cb(conn, reconnectClicked, LV_EVENT_CLICKED, nullptr);
-  if (!ui.radioUp) lv_obj_add_state(conn, LV_STATE_DISABLED);  // radio down
 
   lv_obj_t* forget = lv_btn_create(ui.pairedRow);
   lv_label_set_text(lv_label_create(forget), LV_SYMBOL_TRASH " Esquecer");
@@ -176,31 +130,21 @@ void rebuildPairedRow() {
 }
 
 void bodyDeleted(lv_event_t*) {
-  ui.bt->setSource(nullptr, nullptr);
-  // Stop our timers before tearing the radio down, so neither callback can
-  // fire against an already-powered-off stack (request(None) below powers BT
-  // off and can block in a2dp end() for up to one inquiry cycle if a connect
-  // is still mid-discovery).
-  if (ui.toneTimer) {
-    lv_timer_del(ui.toneTimer);
-    ui.toneTimer = nullptr;
-  }
+  // Cancel a pending connect poll so it can't fire against deleted widgets —
+  // this fires both on the connect→player swap and on app exit, because Music
+  // builds this screen into a child container of its root (see Task 5).
   if (ui.connectTimer) {
     lv_timer_del(ui.connectTimer);
     ui.connectTimer = nullptr;
   }
-  ui.radio->request(RadioMode::None);  // radio-while-open rule
 }
 }  // namespace
 
-void buildBluetoothSection(lv_obj_t* parent, RadioManager& radio,
-                           BluetoothAudioService& bt) {
+void buildBtConnectScreen(lv_obj_t* parent, BluetoothAudioService& bt,
+                          std::function<void()> onConnected) {
   ui = {};
-  ui.radio = &radio;
   ui.bt = &bt;
-  // Set before rebuildPairedRow() runs below so it can consult ui.radioUp
-  // when deciding whether to disable the "Conectar" button.
-  ui.radioUp = radio.request(RadioMode::Bluetooth);
+  ui.onConnected = std::move(onConnected);
 
   ui.status = lv_label_create(parent);
 
@@ -208,18 +152,11 @@ void buildBluetoothSection(lv_obj_t* parent, RadioManager& radio,
   lv_label_set_text(lv_label_create(scanBtn), LV_SYMBOL_REFRESH " Buscar");
   lv_obj_add_event_cb(scanBtn, scanClicked, LV_EVENT_CLICKED, nullptr);
 
-  lv_obj_t* toneBtn = lv_btn_create(parent);
-  lv_label_set_text(lv_label_create(toneBtn),
-                    LV_SYMBOL_AUDIO " Tocar tom de teste");
-  lv_obj_add_event_cb(toneBtn, toneClicked, LV_EVENT_CLICKED, nullptr);
-
   ui.pairedRow = lv_obj_create(parent);
   lv_obj_set_width(ui.pairedRow, LV_PCT(100));
   // Height must hug its content: a plain lv_obj defaults to LV_DPI_DEF (130 px)
-  // tall, which would eat the body's vertical space and squeeze the flex_grow
-  // scan list below it down to a few unusable pixels (found speakers then can't
-  // be seen or tapped). WifiSection avoids this only because its equivalent row
-  // is a (content-sized) button, not a container.
+  // tall, which would eat the vertical space and squeeze the flex_grow scan list
+  // below it down to a few unusable pixels.
   lv_obj_set_height(ui.pairedRow, LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(ui.pairedRow, LV_FLEX_FLOW_ROW_WRAP);
 
@@ -230,11 +167,5 @@ void buildBluetoothSection(lv_obj_t* parent, RadioManager& radio,
   rebuildPairedRow();
   lv_obj_add_event_cb(parent, bodyDeleted, LV_EVENT_DELETE, nullptr);
 
-  if (ui.radioUp) {
-    setStatus("Toque em Buscar para procurar caixas");
-  } else {
-    lv_obj_add_state(scanBtn, LV_STATE_DISABLED);  // no radio -> no scanning
-    lv_obj_add_state(toneBtn, LV_STATE_DISABLED);  // no radio -> no tone
-    setStatus("Bluetooth indisponível");
-  }
+  setStatus("Toque em Buscar para procurar caixas");
 }
