@@ -25,10 +25,16 @@
  * allocating its L2CAP/SDP control blocks and bluedroid asserted deep in its
  * own out-of-memory cleanup (vQueueDelete on a never-created semaphore). This
  * UI's live LVGL usage is far under 24 KB, so halving the pool hands ~24 KB
- * back to the heap (~36 KB free after BT enable) — ample for connect. Watch
- * for "lv_mem: couldn't allocate" if the UI ever grows; do NOT go lower. */
+ * back to the heap (~36 KB free after BT enable) — ample for connect.
+ * A4 (2026-07-14): sized by measurement during the Music RAM reclaim.
+ * 18 KB froze with lv_list-button rows (3 objs + scroll anim per row,
+ * ~440 B/row; lv_anim_start OOM-asserted -> silent while(1)). Music's list
+ * rows are now single ellipsized labels (~1/3 the cost, no anims), which is
+ * what makes 20 KB safe: player UI + a full 28-row view fits with headroom.
+ * If a future UI reintroduces button rows or row anims, re-measure with
+ * lv_mem_monitor before trusting this number. */
 #define LV_MEM_CUSTOM 0
-#define LV_MEM_SIZE (24U * 1024U)
+#define LV_MEM_SIZE (20U * 1024U)
 
 /*==================== HAL ====================*/
 /* Tick straight from Arduino millis(): no lv_tick_inc() calls anywhere. */
@@ -40,7 +46,9 @@
 #define LV_INDEV_DEF_READ_PERIOD 30  /* ms — touch poll cadence     */
 
 /*==================== LOGGING / DEBUG ====================*/
-#define LV_USE_LOG 0          /* flip to 1 + serial print cb when debugging LVGL */
+#define LV_USE_LOG 1          /* TEMP DIAGNOSTIC (A4 freeze): printf -> UART0 */
+#define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
+#define LV_LOG_PRINTF 1
 #define LV_USE_PERF_MONITOR 0 /* flip to 1 to see FPS/CPU overlay */
 #define LV_USE_ASSERT_NULL 1
 #define LV_USE_ASSERT_MALLOC 1

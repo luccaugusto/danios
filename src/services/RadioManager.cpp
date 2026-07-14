@@ -52,7 +52,12 @@ void RadioManager::stopWiFi() {
   WiFi.disconnect(true /*wifioff*/, true /*eraseap — RAM only, NVS creds are ours*/);
   WiFi.mode(WIFI_OFF);
   esp_wifi_stop();
-  // F5: Bluetooth (~64 KB) may need esp_wifi_deinit() here to free enough SRAM.
+  // Belt-and-braces: measured 2026-07-14, this frees ~nothing on core 3.x
+  // (WiFi.mode(WIFI_OFF) already tears the driver down) — kept because it is
+  // harmless and makes the intent explicit. The F5 "~50 KB WiFi residual"
+  // theory is dead; BT-session headroom comes from the A4 RAM reclaim instead
+  // (draw buffer, LVGL pool, ring size).
+  esp_wifi_deinit();
 }
 
 // BluetoothAudioService power hooks (roadmap §4.6): setBluetoothService()

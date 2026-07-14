@@ -31,10 +31,14 @@ private:
 
   static constexpr int16_t kHorRes = 240;
   static constexpr int16_t kVerRes = 320;
-  static constexpr size_t kBufRows = 30;
-  // Single buffer (14,400 bytes): flushCb is synchronous, so a second buffer
-  // would never overlap render with flush — it only earns its RAM if the
-  // flush ever goes async (DMA + deferred lv_disp_flush_ready).
+  // 10 rows (4,800 bytes): cut from 30 in the A4 RAM reclaim — Music's
+  // decode pipeline must coexist with BT Classic (~40-48 KB free after BT,
+  // session-dependent, measured 2026-07-14). More, smaller flushes per
+  // frame; visually benign on this panel.
+  static constexpr size_t kBufRows = 10;
+  // Single buffer: flushCb is synchronous, so a second buffer would never
+  // overlap render with flush — it only earns its RAM if the flush ever goes
+  // async (DMA + deferred lv_disp_flush_ready).
   static constexpr size_t kBufPixels = kHorRes * kBufRows;
 
   LGFX tft_;

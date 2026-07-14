@@ -14,13 +14,33 @@
 namespace {
 MusicApp* g_self = nullptr;  // single instance (same pattern as SettingsApp)
 
-// LVGL-heap guard: every list row is an lv_btn + label out of the 24 KB LVGL
-// pool (F5 halved the budgeted 48 KB to leave headroom for bluedroid — see
-// include/lv_conf.h). The cap applies PER VIEW (albums view, each album's
+// LVGL-heap guard: every list row is an lv_btn + label out of the 18 KB LVGL
+// pool (trimmed from the budgeted 48 KB for bluedroid + the Music pipeline —
+// see include/lv_conf.h). The cap applies PER VIEW (albums view, each album's
 // tracks view). Tracks beyond the cap still play (next/previous cycle through
 // the whole playlist); they just aren't tappable rows. The cap is visible in
 // the UI ("+N"), never silent.
 constexpr int kMaxListRows = 28;
+
+// List rows are single clickable labels, NOT lv_list buttons: a button row is
+// 3 LVGL objects (~440 B measured) and its label defaults to a continuous
+// scroll animation that allocates from the LVGL pool — a 16-row album
+// exhausted the pool (measured 2026-07-14, lv_anim_start OOM assert, silent
+// freeze). One ellipsized label per row is ~1/3 the pool cost, no anims; only
+// the nowPlaying_ label scrolls.
+lv_obj_t* addRowLabel(lv_obj_t* list, const char* icon, const char* text,
+                      lv_event_cb_t cb, int userIdx) {
+  lv_obj_t* lbl = lv_label_create(list);
+  lv_obj_set_width(lbl, LV_PCT(100));
+  lv_label_set_long_mode(lbl, LV_LABEL_LONG_DOT);
+  lv_label_set_text_fmt(lbl, "%s  %s", icon, text);
+  lv_obj_set_style_pad_ver(lbl, 8, 0);  // touch target ~36 px
+  lv_obj_set_style_pad_hor(lbl, 4, 0);
+  lv_obj_add_flag(lbl, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(lbl, cb, LV_EVENT_CLICKED,
+                      reinterpret_cast<void*>(static_cast<intptr_t>(userIdx)));
+  return lbl;
+}
 }  // namespace
 
 void MusicApp::onExit() {
@@ -147,8 +167,19 @@ void MusicApp::showTracksView(int albumIdx) {
   view_ = View::Tracks;
   browseAlbum_ = albums_[static_cast<size_t>(albumIdx)];
   const std::string dir = "/music/" + browseAlbum_;
+  Serial.printf("[music] album tap: '%s'\n", dir.c_str());  // TEMP DIAGNOSTIC
   browseTracks_ = storage_.listFiles(dir.c_str(), ".mp3");
+  lv_mem_monitor_t m;  // TEMP DIAGNOSTIC (A4 freeze): bracket the UI build
+  lv_mem_monitor(&m);
+  Serial.printf("[music] %d tracks; lv pool before build: %u free, %u biggest\n",
+                static_cast<int>(browseTracks_.size()),
+                static_cast<unsigned>(m.free_size),
+                static_cast<unsigned>(m.free_biggest_size));
   refreshList();
+  lv_mem_monitor(&m);
+  Serial.printf("[music] lv pool after build: %u free, %u biggest\n",
+                static_cast<unsigned>(m.free_size),
+                static_cast<unsigned>(m.free_biggest_size));
 }
 
 std::string MusicApp::browsePrefix() const {
@@ -277,23 +308,19 @@ void MusicApp::refreshAlbumsList() {
   const int shown = total < kMaxListRows ? total : kMaxListRows;
   for (int i = 0; i < shown; ++i) {
     if (i < nAlbums) {
-      lv_obj_t* btn =
-          lv_list_add_btn(list_, LV_SYMBOL_DIRECTORY, albums_[i].c_str());
-      lv_obj_add_event_cb(btn, albumClicked, LV_EVENT_CLICKED,
-                          reinterpret_cast<void*>(static_cast<intptr_t>(i)));
+      addRowLabel(list_, LV_SYMBOL_DIRECTORY, albums_[i].c_str(),
+                  albumClicked, i);
     } else {
       const int t = i - nAlbums;  // loose root track: plays directly
       const bool current =
           (playingPrefix_ == "/music/" && t == playlist_.currentIndex());
-      lv_obj_t* btn =
-          lv_list_add_btn(list_, current ? LV_SYMBOL_PLAY : LV_SYMBOL_AUDIO,
-                          trackTitle(looseTracks_[t]).c_str());
+      lv_obj_t* row =
+          addRowLabel(list_, current ? LV_SYMBOL_PLAY : LV_SYMBOL_AUDIO,
+                      trackTitle(looseTracks_[t]).c_str(), trackClicked, t);
       if (playingPrefix_ == "/music/" && playlist_.isBad(t)) {
-        lv_obj_set_style_opa(btn, LV_OPA_40, 0);
+        lv_obj_set_style_opa(row, LV_OPA_40, 0);
       }
-      lv_obj_add_event_cb(btn, trackClicked, LV_EVENT_CLICKED,
-                          reinterpret_cast<void*>(static_cast<intptr_t>(t)));
-      if (current) lv_obj_scroll_to_view(btn, LV_ANIM_OFF);
+      if (current) lv_obj_scroll_to_view(row, LV_ANIM_OFF);
     }
   }
   if (total > shown) {
@@ -315,15 +342,13 @@ void MusicApp::refreshTracksList() {
   const int shown = total < kMaxListRows ? total : kMaxListRows;
   for (int i = 0; i < shown; ++i) {
     const bool current = playingThis && i == playlist_.currentIndex();
-    lv_obj_t* btn =
-        lv_list_add_btn(list_, current ? LV_SYMBOL_PLAY : LV_SYMBOL_AUDIO,
-                        trackTitle(browseTracks_[i]).c_str());
+    lv_obj_t* row =
+        addRowLabel(list_, current ? LV_SYMBOL_PLAY : LV_SYMBOL_AUDIO,
+                    trackTitle(browseTracks_[i]).c_str(), trackClicked, i);
     if (playingThis && playlist_.isBad(i)) {
-      lv_obj_set_style_opa(btn, LV_OPA_40, 0);
+      lv_obj_set_style_opa(row, LV_OPA_40, 0);
     }
-    lv_obj_add_event_cb(btn, trackClicked, LV_EVENT_CLICKED,
-                        reinterpret_cast<void*>(static_cast<intptr_t>(i)));
-    if (current) lv_obj_scroll_to_view(btn, LV_ANIM_OFF);
+    if (current) lv_obj_scroll_to_view(row, LV_ANIM_OFF);
   }
   if (total > shown) {
     char more[32];

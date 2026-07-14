@@ -71,7 +71,7 @@ class MusicApp : public App {
   StorageService& storage_;
   BluetoothAudioService& bt_;
   Playlist playlist_;                  // the PLAYING set's tracks (basenames)
-  std::unique_ptr<Mp3Player> player_;  // ~63 KB pipeline, alive only in-app
+  std::unique_ptr<Mp3Player> player_;  // ~38 KB pipeline, alive only in-app
   View view_ = View::Albums;
   std::vector<std::string> albums_;        // folder names under /music (sorted)
   std::vector<std::string> looseTracks_;   // root *.mp3 basenames (sorted)

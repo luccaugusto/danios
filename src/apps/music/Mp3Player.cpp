@@ -1,16 +1,19 @@
 #include "apps/music/Mp3Player.h"
 
 namespace {
-// RAM knobs (global constraint: no PSRAM, ~90-150 KB free with BT up — see
-// the F5 heap figures in docs/hardware.md). If allocation ever fails on
-// device, halve kRingSamples first.
-constexpr size_t kRingSamples = 16 * 1024;   // int16 samples = 32 KB ~ 186 ms
-constexpr size_t kMp3ChunkBytes = 128;       // <= 2 decoded frames per write,
-                                             // even at the lowest CBR bitrates
-constexpr size_t kMinFreeToFeed = 2 * 2304;  // room for 2 worst-case stereo
-                                             // MP3 frames (1152 samples x 2 ch)
-constexpr int kMaxChunksPerFeed = 8;         // bounds tick() time; ~1 KB/tick
-                                             // of MP3 easily outpaces playback
+// RAM knobs. MEASURED budget (HW, 2026-07-14): ~33 KB of free heap with BT
+// Classic up — the plan's "~90-150 KB" never existed. The whole pipeline
+// (ring + ~23 KB helix decoder structs + ~7 KB helix pcm/frame buffers) must
+// fit in that, so the ring is 8 KB and the MP3 chunk is 64 bytes: with <= 64
+// new bytes per decoder_.write(), CommonHelix's drain loop (decodes while
+// >= 1024 bytes are buffered) can complete at most ONE frame per write, so
+// one worst-case stereo frame (1152 x 2 ch = 2304 samples) of ring headroom
+// is enough to guarantee pcmCallback never overflows.
+constexpr size_t kRingSamples = 4 * 1024;  // int16 samples = 8 KB ~ 46 ms
+constexpr size_t kMp3ChunkBytes = 64;      // <= 1 decoded frame per write
+constexpr size_t kMinFreeToFeed = 2304;    // 1 worst-case stereo MP3 frame
+constexpr int kMaxChunksPerFeed = 8;       // bounds tick() time; 512 B/tick
+                                           // of MP3 easily outpaces playback
 
 // arduino-libhelix v0.8.5 never forwards setReference()'s pointer to the data
 // callback: provideResult() passes p_caller_data, which the library never
@@ -41,6 +44,18 @@ bool Mp3Player::open(const char* path, bool flushRing) {
     return false;
   }
   badFormat_ = false;
+  // Heap gate for the ~30 KB decoder allocation (7 helix structs + pcm/frame
+  // buffers; close() above already freed any previous instance). libhelix's
+  // allocator hangs in while(true) on OOM instead of failing, so this check
+  // is the ONLY thing standing between a tight session and a silent freeze —
+  // gate generously and let the track fail cleanly.
+  constexpr size_t kDecoderHeapNeed = 34 * 1024;
+  if (esp_get_free_heap_size() < kDecoderHeapNeed) {
+    file_.close();
+    Serial.printf("[music] low heap (%u free) — refusing decoder alloc: %s\n",
+                  static_cast<unsigned>(esp_get_free_heap_size()), path);
+    return false;
+  }
   if (!decoder_.begin()) {  // ~24 KB MP3InitDecoder alloc can fail (no PSRAM)
     file_.close();
     Serial.printf("[music] decoder alloc FAILED: %s\n", path);
