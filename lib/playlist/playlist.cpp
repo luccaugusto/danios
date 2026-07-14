@@ -25,15 +25,16 @@ std::string Playlist::fileAt(int i) const {
   return files_[static_cast<size_t>(i)];
 }
 
-std::string Playlist::titleAt(int i) const {
-  std::string f = fileAt(i);
-  if (f.size() >= 4) {
-    std::string tail = f.substr(f.size() - 4);
+std::string trackTitle(const std::string& file) {
+  if (file.size() >= 4) {
+    std::string tail = file.substr(file.size() - 4);
     for (char& c : tail) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    if (tail == ".mp3") return f.substr(0, f.size() - 4);
+    if (tail == ".mp3") return file.substr(0, file.size() - 4);
   }
-  return f;
+  return file;
 }
+
+std::string Playlist::titleAt(int i) const { return trackTitle(fileAt(i)); }
 
 bool Playlist::isBad(int i) const {
   return i >= 0 && i < count() && bad_[static_cast<size_t>(i)];

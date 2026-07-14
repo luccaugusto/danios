@@ -38,6 +38,12 @@ static void test_title_strips_extension_case_insensitive() {
   TEST_ASSERT_EQUAL_STRING("semextensao", p.titleAt(1).c_str());
 }
 
+static void test_track_title_free_function() {
+  TEST_ASSERT_EQUAL_STRING("Minha Musica", trackTitle("Minha Musica.MP3").c_str());
+  TEST_ASSERT_EQUAL_STRING("semextensao", trackTitle("semextensao").c_str());
+  TEST_ASSERT_EQUAL_STRING("", trackTitle(".mp3").c_str());  // degenerate name
+}
+
 static void test_single_track_wraps_to_itself() {
   Playlist p;
   p.setFiles({"only.mp3"});
@@ -99,6 +105,7 @@ int main(int, char**) {
   RUN_TEST(test_empty_list);
   RUN_TEST(test_set_files_starts_at_first);
   RUN_TEST(test_title_strips_extension_case_insensitive);
+  RUN_TEST(test_track_title_free_function);
   RUN_TEST(test_single_track_wraps_to_itself);
   RUN_TEST(test_next_previous_wrap);
   RUN_TEST(test_select);

@@ -10,6 +10,10 @@
 #include <string>
 #include <vector>
 
+// Display title rule shared by Playlist::titleAt and the Music UI's
+// non-playlist listings (A4.1): basename minus a trailing ".mp3", any case.
+std::string trackTitle(const std::string& file);
+
 class Playlist {
  public:
   void setFiles(std::vector<std::string> files);  // resets current to 0 (or -1)
