@@ -19,20 +19,20 @@ static void test_band_freezing_below_zero() {
   assertBand(TempBand::Freezing, -25.0f);
 }
 
-static void test_band_cold_0_to_9() {
-  assertBand(TempBand::Cold, 0.0f);   // spec boundary: -1/0
-  assertBand(TempBand::Cold, 9.0f);   // spec boundary: 9/10
-  assertBand(TempBand::Cold, 9.9f);
+static void test_band_cold_0_to_14() {
+  assertBand(TempBand::Cold, 0.0f);   // README boundary: -1/0
+  assertBand(TempBand::Cold, 14.0f);  // README boundary: 14/15
+  assertBand(TempBand::Cold, 14.9f);
 }
 
-static void test_band_mild_10_to_19() {
-  assertBand(TempBand::Mild, 10.0f);
-  assertBand(TempBand::Mild, 19.9f);
+static void test_band_mild_15_to_23() {
+  assertBand(TempBand::Mild, 15.0f);
+  assertBand(TempBand::Mild, 23.9f);
 }
 
-static void test_band_warm_20_to_27() {
-  assertBand(TempBand::Warm, 20.0f);
-  assertBand(TempBand::Warm, 27.0f);  // spec boundary: 27/28
+static void test_band_warm_24_to_27() {
+  assertBand(TempBand::Warm, 24.0f);
+  assertBand(TempBand::Warm, 27.0f);  // README boundary: 27/28
   assertBand(TempBand::Warm, 27.9f);
 }
 
@@ -141,7 +141,7 @@ static void test_art_overlay_per_condition() {
       artSlots(TempBand::Hot, Condition::Clear, true).overlay);
   TEST_ASSERT_EQUAL_STRING(
       "S:/art/weather/ov_umbrella.bin",
-      artSlots(TempBand::Mild, Condition::Rain, true).overlay);
+      artSlots(TempBand::Warm, Condition::Rain, true).overlay);
   TEST_ASSERT_EQUAL_STRING(
       "S:/art/weather/ov_umbrella.bin",
       artSlots(TempBand::Warm, Condition::Storm, true).overlay);
@@ -150,6 +150,21 @@ static void test_art_overlay_per_condition() {
       artSlots(TempBand::Freezing, Condition::Snow, true).overlay);
   TEST_ASSERT_NULL(artSlots(TempBand::Mild, Condition::Cloudy, true).overlay);
   TEST_ASSERT_NULL(artSlots(TempBand::Mild, Condition::Fog, true).overlay);
+}
+
+static void test_art_hat_on_mild_clear_or_rain() {
+  // Mild band swaps the condition accessory for the hat on sunny/rainy days.
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/ov_hat.bin",
+      artSlots(TempBand::Mild, Condition::Clear, true).overlay);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/ov_hat.bin",
+      artSlots(TempBand::Mild, Condition::Rain, true).overlay);
+  // Not at night, and storm keeps the umbrella even when mild.
+  TEST_ASSERT_NULL(artSlots(TempBand::Mild, Condition::Clear, false).overlay);
+  TEST_ASSERT_EQUAL_STRING(
+      "S:/art/weather/ov_umbrella.bin",
+      artSlots(TempBand::Mild, Condition::Storm, true).overlay);
 }
 
 static void test_art_background_per_condition() {
@@ -219,9 +234,9 @@ static void test_tz_quarter_hour() {
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_band_freezing_below_zero);
-  RUN_TEST(test_band_cold_0_to_9);
-  RUN_TEST(test_band_mild_10_to_19);
-  RUN_TEST(test_band_warm_20_to_27);
+  RUN_TEST(test_band_cold_0_to_14);
+  RUN_TEST(test_band_mild_15_to_23);
+  RUN_TEST(test_band_warm_24_to_27);
   RUN_TEST(test_band_hot_28_up);
   RUN_TEST(test_condition_clear);
   RUN_TEST(test_condition_cloudy);
@@ -235,6 +250,7 @@ int main(int, char**) {
   RUN_TEST(test_condition_labels_pt);
   RUN_TEST(test_art_outfit_per_band);
   RUN_TEST(test_art_overlay_per_condition);
+  RUN_TEST(test_art_hat_on_mild_clear_or_rain);
   RUN_TEST(test_art_background_per_condition);
   RUN_TEST(test_art_clear_night_variant);
   RUN_TEST(test_art_unknown_condition_has_no_slots);

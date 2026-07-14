@@ -127,23 +127,34 @@ Design is approved and hardware is in hand. Pick up at either:
 
 ## TODO
 
-- [ ] draw the images for weather app — 15 sprites, `.bin` under `S:/art/weather/`
-      (paths from `lib/weather_model/weather_model.cpp`, sizes from `WeatherApp.cpp`)
-  - Outfits (110×130), one per temperature band:
-    - [ ] `outfit_freezing.bin` — < 0 °C (heavy coat, hat, gloves)
-    - [ ] `outfit_cold.bin` — 0–9 °C (jacket)
-    - [ ] `outfit_mild.bin` — 10–19 °C (long sleeves)
-    - [ ] `outfit_warm.bin` — 20–27 °C (t-shirt)
-    - [ ] `outfit_hot.bin` — ≥ 28 °C (shorts / tank top)
-  - Overlays (48×48):
-    - [ ] `ov_sunglasses.bin` — clear + day
-    - [ ] `ov_umbrella.bin` — rain, storm
-    - [ ] `ov_scarf.bin` — snow
+- [x] draw the images for weather app — 16 sprites, `.bin` under `S:/art/weather/`
+      (paths from `lib/weather_model/weather_model.cpp`, sizes from `WeatherApp.cpp`).
+      PNGs live in `assets/art/weather/`; convert with
+      `assets/icons/svg_to_lvgl_bin.py <png> sd/art/weather/<name>.bin`
+      (character/outfit/overlay sprites: add `--size 188x222` — 95% of the
+      PNG canvas), then copy `sd/` onto the card.
+  - Character, outfits, and overlays share one 198×234 canvas, exported
+    pre-positioned relative to the character — the app stacks them at the
+    same anchor, no offsets in code. On-device they render at 188×222.
+  - Character (198×234):
+    - [x] `gata-coco.bin` — base sprite, always shown
+  - Outfits (198×234), one per temperature band:
+    - [x] `outfit_freezing.bin` — < 0 °C (heavy coat, hat, gloves)
+    - [x] `outfit_cold.bin` — 0–14 °C (jacket)
+    - [x] `outfit_mild.bin` — 15–23 °C (long sleeves)
+    - [x] `outfit_warm.bin` — 24–27 °C (t-shirt)
+    - [x] `outfit_hot.bin` — ≥ 28 °C (shorts / tank top)
+  - Overlays (198×234):
+    - [x] `ov_sunglasses.bin` — clear + day (except mild)
+    - [x] `ov_umbrella.bin` — rain (except mild), storm
+    - [x] `ov_scarf.bin` — snow
+    - [x] `ov_hat.bin` — mild + (clear day or rain)
   - Backgrounds (240×288):
-    - [ ] `bg_clear.bin`
-    - [ ] `bg_clear_night.bin`
-    - [ ] `bg_cloudy.bin`
-    - [ ] `bg_fog.bin`
-    - [ ] `bg_rain.bin`
-    - [ ] `bg_snow.bin`
-    - [ ] `bg_storm.bin`
+    - [x] `bg_clear.bin`
+    - [x] `bg_clear_night.bin`
+    - [x] `bg_cloudy.bin`
+    - [x] `bg_fog.bin`
+    - [x] `bg_rain.bin`
+    - [x] `bg_snow.bin`
+    - [x] `bg_storm.bin`
+- [ ] make a boot screen like the wifi connecting screen we have today but that shows always, wifi connection happens at this step

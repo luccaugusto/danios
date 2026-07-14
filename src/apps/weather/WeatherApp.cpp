@@ -14,19 +14,24 @@ namespace {
 constexpr uint32_t kRefreshMs = 20u * 60u * 1000u;  // spec: ~15-30 min timer
 constexpr uint32_t kFirstFetchDelayMs = 400;  // let the cached frame paint
 
+// Base character sprite; outfit + accessory stack on top of her.
+const char* kCharacterPath = "S:/art/weather/gata-coco.bin";
+
 const char* kDayNames[3] = {"Hoje", "Amanhã", "Depois"};
 
 // One art slot: the SD image when present, else a flat colored box (roadmap
 // §4.1 placeholder rule — hand-drawn art arrives incrementally). A nullptr
-// path means the condition has no such slot: render nothing.
+// path means the condition has no such slot: render nothing. hideIfMissing
+// skips the placeholder box for slots that would cover other art (the
+// full-canvas accessory overlay sits on top of the outfit).
 lv_obj_t* makeArtSlot(lv_obj_t* parent, StorageService& storage,
                       const char* lvglPath, lv_coord_t w, lv_coord_t h,
-                      lv_color_t fallback) {
+                      lv_color_t fallback, bool hideIfMissing = false) {
   lv_obj_t* img = lv_img_create(parent);
   lv_obj_set_size(img, w, h);
   if (lvglPath != nullptr && storage.exists(lvglPath + 2)) {  // "S:/x" -> "/x"
     lv_img_set_src(img, lvglPath);
-  } else if (lvglPath != nullptr) {
+  } else if (lvglPath != nullptr && !hideIfMissing) {
     lv_obj_set_style_bg_color(img, fallback, 0);
     lv_obj_set_style_bg_opa(img, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(img, 6, 0);
@@ -114,13 +119,22 @@ void WeatherApp::render(const ForecastWx& f, bool stale) {
   lv_obj_set_pos(bg, 0, 0);
   lv_obj_set_style_radius(bg, 0, 0);
 
-  // Character: outfit box with the condition accessory at its shoulder.
-  lv_obj_t* outfit = makeArtSlot(root_, *storage_, art.outfit, 110, 130,
-                                 lv_palette_main(LV_PALETTE_GREY));
-  lv_obj_align(outfit, LV_ALIGN_TOP_MID, 0, 64);
-  lv_obj_t* overlay = makeArtSlot(root_, *storage_, art.overlay, 48, 48,
-                                  lv_palette_main(LV_PALETTE_ORANGE));
-  lv_obj_align(overlay, LV_ALIGN_TOP_MID, 52, 56);
+  // Character: base sprite, outfit, and accessory overlay share one canvas,
+  // exported pre-positioned relative to the character — all three stack at
+  // the same anchor and no per-sprite offsets live in code. The 198x234 PNGs
+  // are converted at 95% (188x222); the y offset keeps her feet on the
+  // ground line the backgrounds draw at the old canvas bottom.
+  lv_obj_t* character = makeArtSlot(root_, *storage_, kCharacterPath, 188, 222,
+                                    lv_palette_main(LV_PALETTE_GREY));
+  lv_obj_align(character, LV_ALIGN_TOP_MID, 0, 12);
+  lv_obj_t* outfit =
+      makeArtSlot(root_, *storage_, art.outfit, 188, 222,
+                  lv_palette_main(LV_PALETTE_GREY), /*hideIfMissing=*/true);
+  lv_obj_align(outfit, LV_ALIGN_TOP_MID, 0, 12);
+  lv_obj_t* overlay =
+      makeArtSlot(root_, *storage_, art.overlay, 188, 222,
+                  lv_palette_main(LV_PALETTE_ORANGE), /*hideIfMissing=*/true);
+  lv_obj_align(overlay, LV_ALIGN_TOP_MID, 0, 12);
 
   // Readings (spec): current temp + condition, city, today's high/low.
   lv_obj_t* temp = makeReadout(root_);
@@ -137,7 +151,7 @@ void WeatherApp::render(const ForecastWx& f, bool stale) {
     lv_label_set_text_fmt(hilo, LV_SYMBOL_UP "%d°  " LV_SYMBOL_DOWN "%d°",
                           shownTemp(f.days[0].tmaxC, useF),
                           shownTemp(f.days[0].tminC, useF));
-    lv_obj_align(hilo, LV_ALIGN_TOP_MID, 0, 200);
+    lv_obj_align(hilo, LV_ALIGN_TOP_RIGHT, -8, 8);
   }
 
   // Mini-forecast strip along the bottom (spec: 2-3 day row).
@@ -180,7 +194,8 @@ void WeatherApp::setStatus(const char* msg) {
   if (root_ == nullptr) return;
   if (statusLbl_ == nullptr) {
     statusLbl_ = makeReadout(root_);
-    lv_obj_align(statusLbl_, LV_ALIGN_TOP_RIGHT, -8, 8);
+    // Below the hi/lo readout, which owns the top-right corner.
+    lv_obj_align(statusLbl_, LV_ALIGN_TOP_RIGHT, -8, 30);
   }
   lv_label_set_text(statusLbl_, msg);
 }

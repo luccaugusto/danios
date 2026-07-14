@@ -3,8 +3,8 @@
 
 TempBand tempBand(float celsius) {
   if (celsius < 0.0f) return TempBand::Freezing;
-  if (celsius < 10.0f) return TempBand::Cold;
-  if (celsius < 20.0f) return TempBand::Mild;
+  if (celsius < 15.0f) return TempBand::Cold;
+  if (celsius < 24.0f) return TempBand::Mild;
   if (celsius < 28.0f) return TempBand::Warm;
   return TempBand::Hot;
 }
@@ -56,7 +56,11 @@ ArtSlots artSlots(TempBand band, Condition cond, bool isDay) {
   ArtSlots s{kOutfit[static_cast<int>(band)], nullptr, nullptr};
   switch (cond) {
     case Condition::Clear:
-      if (isDay) s.overlay = "S:/art/weather/ov_sunglasses.bin";
+      // Mild sunny days get the hat instead of sunglasses.
+      if (isDay) {
+        s.overlay = band == TempBand::Mild ? "S:/art/weather/ov_hat.bin"
+                                           : "S:/art/weather/ov_sunglasses.bin";
+      }
       s.background = isDay ? "S:/art/weather/bg_clear.bin"
                            : "S:/art/weather/bg_clear_night.bin";
       break;
@@ -67,7 +71,9 @@ ArtSlots artSlots(TempBand band, Condition cond, bool isDay) {
       s.background = "S:/art/weather/bg_fog.bin";
       break;
     case Condition::Rain:
-      s.overlay = "S:/art/weather/ov_umbrella.bin";
+      // Mild rainy days get the hat instead of the umbrella.
+      s.overlay = band == TempBand::Mild ? "S:/art/weather/ov_hat.bin"
+                                         : "S:/art/weather/ov_umbrella.bin";
       s.background = "S:/art/weather/bg_rain.bin";
       break;
     case Condition::Snow:

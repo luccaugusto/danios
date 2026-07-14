@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <string>
 
-// Outfit is chosen by temperature band (spec table: <0, 0-9, 10-19, 20-27, >=28 °C).
+// Outfit is chosen by temperature band (README table: <0, 0-14, 15-23, 24-27, >=28 °C).
 enum class TempBand : uint8_t { Freezing, Cold, Mild, Warm, Hot };
 
 // Overlay + background are chosen by WMO weather_code group (spec table).
@@ -28,7 +28,7 @@ const char* conditionLabelPt(Condition c);
 // live on the SD card; the UI renders a placeholder box when one is missing.
 struct ArtSlots {
   const char* outfit;      // never nullptr
-  const char* overlay;     // accessory (sunglasses/umbrella/scarf) or nullptr
+  const char* overlay;     // accessory (sunglasses/umbrella/scarf/hat) or nullptr
   const char* background;  // scene behind the character, or nullptr = plain
 };
 ArtSlots artSlots(TempBand band, Condition cond, bool isDay);
