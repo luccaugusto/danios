@@ -80,6 +80,24 @@ void test_empty_ext_keeps_all_files_but_not_dirs() {
   TEST_ASSERT_EQUAL_STRING("wisdom.txt", out[1].c_str());
 }
 
+void test_dir_filter_keeps_only_visible_dirs() {
+  std::vector<FsEntry> in = {
+      {"song.mp3", false},  // file -> skipped
+      {"Zebra", true},
+      {".Trash", true},     // hidden dir -> skipped
+      {"Abba", true},
+  };
+  auto out = filterAndSortDirNames(in);
+  TEST_ASSERT_EQUAL_UINT32(2u, (uint32_t)out.size());
+  TEST_ASSERT_EQUAL_STRING("Abba", out[0].c_str());
+  TEST_ASSERT_EQUAL_STRING("Zebra", out[1].c_str());
+}
+
+void test_dir_filter_empty_input() {
+  auto out = filterAndSortDirNames({});
+  TEST_ASSERT_EQUAL_UINT32(0u, (uint32_t)out.size());
+}
+
 int main(int argc, char** argv) {
   (void)argc; (void)argv;
   UNITY_BEGIN();
@@ -91,5 +109,7 @@ int main(int argc, char** argv) {
   RUN_TEST(test_filter_by_extension_case_insensitive);
   RUN_TEST(test_sort_is_bytewise_ascending);
   RUN_TEST(test_empty_ext_keeps_all_files_but_not_dirs);
+  RUN_TEST(test_dir_filter_keeps_only_visible_dirs);
+  RUN_TEST(test_dir_filter_empty_input);
   return UNITY_END();
 }

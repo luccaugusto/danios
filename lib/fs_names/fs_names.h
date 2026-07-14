@@ -20,3 +20,9 @@ bool isHiddenName(const std::string& name);
 // ascending byte-wise (deterministic, locale-free).
 std::vector<std::string> filterAndSortNames(const std::vector<FsEntry>& entries,
                                             const std::string& ext);
+
+// Keep directory entries (drop files and hidden names); return names sorted
+// ascending byte-wise. The dirs-only mirror of filterAndSortNames — album
+// folders under /music (A4.1).
+std::vector<std::string> filterAndSortDirNames(
+    const std::vector<FsEntry>& entries);

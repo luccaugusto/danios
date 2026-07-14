@@ -10,6 +10,7 @@ public:
   bool mounted() const;
   bool exists(const char* path);
   std::vector<std::string> listFiles(const char* dir, const char* ext); // sorted, non-recursive
+  std::vector<std::string> listDirs(const char* dir);                    // sorted folder names, non-recursive (A4.1 albums)
   bool readLines(const char* path, std::vector<std::string>& out);      // trims \r, skips empty
 
 private:

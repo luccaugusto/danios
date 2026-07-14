@@ -32,3 +32,15 @@ std::vector<std::string> filterAndSortNames(const std::vector<FsEntry>& entries,
   std::sort(out.begin(), out.end());
   return out;
 }
+
+std::vector<std::string> filterAndSortDirNames(
+    const std::vector<FsEntry>& entries) {
+  std::vector<std::string> out;
+  for (const auto& e : entries) {
+    if (!e.isDir) continue;
+    if (isHiddenName(e.name)) continue;
+    out.push_back(e.name);
+  }
+  std::sort(out.begin(), out.end());
+  return out;
+}

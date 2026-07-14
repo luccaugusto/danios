@@ -34,6 +34,21 @@ std::vector<std::string> StorageService::listFiles(const char* dir, const char* 
   return filterAndSortNames(entries, ext ? std::string(ext) : std::string());
 }
 
+std::vector<std::string> StorageService::listDirs(const char* dir) {
+  std::vector<FsEntry> entries;
+  if (mounted_) {
+    File d = SD.open(dir);
+    if (d && d.isDirectory()) {
+      for (File f = d.openNextFile(); f; f = d.openNextFile()) {
+        entries.push_back(FsEntry{std::string(f.name()), f.isDirectory()});
+        f.close();
+      }
+    }
+    if (d) d.close();
+  }
+  return filterAndSortDirNames(entries);
+}
+
 bool StorageService::readLines(const char* path, std::vector<std::string>& out) {
   out.clear();
   if (!mounted_) return false;
