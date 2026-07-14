@@ -2,6 +2,7 @@
 
 **Extracted:** 2026-07-06 from the [master spec](../2026-06-03-esp32-gift-device-design.md) §4.2, §6.3, §6.5, §7.3, §8.
 **Revised:** 2026-07-08 — the Bluetooth connect flow moved **into this app** (open → connect → play). The former "redirect to Settings → Bluetooth" is dropped and the Settings → Bluetooth section is removed; the scan/pair/connect/forget UI now lives in `src/apps/music/BtConnectScreen`. See [the plan](../../plans/2026-07-03-app-music.md) Task 3.
+**Revised 2026-07-14 (A4.1):** folders directly under `/music` are **albums** (one level deep) — the app opens on an albums view, playlists are per-album, and back walks tracks → albums → home. Supersedes this spec's "flat, non-recursive" scan of `/music`. Design: [`2026-07-14-music-albums-design.md`](../2026-07-14-music-albums-design.md).
 **Interfaces:** the [roadmap](../../plans/2026-07-03-danios-roadmap.md) §4 is authoritative — never rename its names/paths/keys.
 **Roadmap slot:** A4 (`lib/playlist/` reserved in roadmap §3). Depends on F3 (SD) + F5 (Bluetooth) — the last app that can start.
 
