@@ -18,7 +18,7 @@ struct AppInfo {
 };
 
 namespace catalog {
-inline constexpr AppInfo kWeather{"Clima", nullptr};
+inline constexpr AppInfo kWeather{"Clima", "S:/art/icons/weather.bin"};
 inline constexpr AppInfo kMusic{"Música", nullptr};
 inline constexpr AppInfo kCalc{"Calculadora", "S:/art/icons/calc.bin"};
 inline constexpr AppInfo kOracle{"Oráculo", nullptr};

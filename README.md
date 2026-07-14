@@ -127,4 +127,23 @@ Design is approved and hardware is in hand. Pick up at either:
 
 ## TODO
 
-- [ ] draw the images for weather app
+- [ ] draw the images for weather app — 15 sprites, `.bin` under `S:/art/weather/`
+      (paths from `lib/weather_model/weather_model.cpp`, sizes from `WeatherApp.cpp`)
+  - Outfits (110×130), one per temperature band:
+    - [ ] `outfit_freezing.bin` — < 0 °C (heavy coat, hat, gloves)
+    - [ ] `outfit_cold.bin` — 0–9 °C (jacket)
+    - [ ] `outfit_mild.bin` — 10–19 °C (long sleeves)
+    - [ ] `outfit_warm.bin` — 20–27 °C (t-shirt)
+    - [ ] `outfit_hot.bin` — ≥ 28 °C (shorts / tank top)
+  - Overlays (48×48):
+    - [ ] `ov_sunglasses.bin` — clear + day
+    - [ ] `ov_umbrella.bin` — rain, storm
+    - [ ] `ov_scarf.bin` — snow
+  - Backgrounds (240×288):
+    - [ ] `bg_clear.bin`
+    - [ ] `bg_clear_night.bin`
+    - [ ] `bg_cloudy.bin`
+    - [ ] `bg_fog.bin`
+    - [ ] `bg_rain.bin`
+    - [ ] `bg_snow.bin`
+    - [ ] `bg_storm.bin`
