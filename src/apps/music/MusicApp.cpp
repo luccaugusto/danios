@@ -68,6 +68,23 @@ void MusicApp::buildUI(lv_obj_t* parent) {
   lv_obj_set_style_pad_all(root_, 8, 0);
   lv_obj_set_style_pad_row(root_, 8, 0);
 
+  // Pipeline (~24 KB: ~15.5 KB player object + 8 KB ring) is allocated BEFORE
+  // the A2DP link comes up: the link itself costs ~14 KB, and the free heap
+  // left after it (13-22 KB measured 2026-07-14) no longer fits the pipeline.
+  // At this point only the BT stack is enabled (~43-51 KB free).
+  if (!player_) {
+    if (esp_get_free_heap_size() < 40 * 1024) {  // pipeline + link + margin
+      showMessage(
+          "Memória insuficiente para tocar música.\n"
+          "Reinicie o aparelho e abra Música primeiro.");
+      return;
+    }
+    player_.reset(new Mp3Player());
+    Serial.printf("[music] heap after pipeline: %u free, %u largest\n",
+                  (unsigned)esp_get_free_heap_size(),
+                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+  }
+
   // Spec §4.2 steps 2-3: not linked yet -> show the connect screen. The A2DP
   // link is app-scoped and always down on entry, so this is where every
   // session starts (scan/pair/connect/forget). BtConnectScreen calls back on a
@@ -100,11 +117,7 @@ void MusicApp::buildUI(lv_obj_t* parent) {
     return;
   }
 
-  // Connected: allocate the pipeline (RAM strategy) and start the player.
-  if (!player_) player_.reset(new Mp3Player());
-  Serial.printf("[music] heap after pipeline: %u free, %u largest\n",
-                (unsigned)esp_get_free_heap_size(),
-                (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+  // Connected: hook the (pre-allocated) pipeline to the A2DP source.
   bt_.setSource(&Mp3Player::sourceCallback, player_.get());
 
   buildPlayerUI();

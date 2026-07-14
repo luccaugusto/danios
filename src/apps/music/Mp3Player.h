@@ -2,6 +2,13 @@
 // (A4, spec §4.2). Decoder wiring lives with the app, not the service: the
 // service only moves PCM frames (spec architecture rule).
 //
+// Decoder is minimp3 (vendored, lib/minimp3, CC0), replacing arduino-libhelix:
+// helix needed ~30 KB of heap per open and its allocator hangs in while(true)
+// on OOM — structurally unfittable beside BT Classic on this no-PSRAM board
+// (measured 2026-07-14: 13-22 KB free once the A2DP link is up). minimp3 keeps
+// all state in this object (~15.5 KB, allocated once with the ring before the
+// link comes up) and never touches the heap while decoding.
+//
 // Threading: feed() decodes on the Arduino loop task (called from
 // MusicApp::tick); sourceCallback() drains the ring on the Bluetooth stack
 // task. PcmRing is the only object both touch; playing_/volumePct_ are atomics.
@@ -11,11 +18,12 @@
 // (no resampler on a no-PSRAM board) and feed() reports Error -> skip.
 #pragma once
 
-#include <MP3DecoderHelix.h>
 #include <SD.h>
+#include <minimp3.h>
 #include <pcm_ring.h>
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 
 class Mp3Player {
@@ -43,12 +51,16 @@ class Mp3Player {
   static int32_t sourceCallback(int16_t* stereo_buf, int32_t frames, void* ctx);
 
  private:
-  static void pcmCallback(MP3FrameInfo& info, short* pcm, size_t len, void* ref);
+  void writePcm(int samplesPerChannel, int channels);  // upmixes mono
+
+  static constexpr size_t kInBufBytes = 4096;  // >= 2 max frames of lookahead
 
   File file_;
-  libhelix::MP3DecoderHelix decoder_;
+  mp3dec_t dec_;                // ~6.7 KB decoder state, no hidden allocs
+  uint8_t inBuf_[kInBufBytes];  // raw MP3 bytes from SD, compacted after use
+  size_t inLen_ = 0;
+  int16_t pcm_[MINIMP3_MAX_SAMPLES_PER_FRAME];  // one decoded frame (4.6 KB)
   PcmRing ring_;
   std::atomic<bool> playing_{false};
   std::atomic<uint8_t> volumePct_{60};  // session-only: A4 owns no NVS keys
-  bool badFormat_ = false;  // set by pcmCallback on unsupported sample rate
 };

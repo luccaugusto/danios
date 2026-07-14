@@ -1,39 +1,25 @@
+#define MINIMP3_IMPLEMENTATION  // exactly one TU carries the decoder body
+#define MINIMP3_ONLY_MP3        // no MP1/MP2 support: smaller flash
+
 #include "apps/music/Mp3Player.h"
 
-namespace {
-// RAM knobs. MEASURED budget (HW, 2026-07-14): ~33 KB of free heap with BT
-// Classic up — the plan's "~90-150 KB" never existed. The whole pipeline
-// (ring + ~23 KB helix decoder structs + ~7 KB helix pcm/frame buffers) must
-// fit in that, so the ring is 8 KB and the MP3 chunk is 64 bytes: with <= 64
-// new bytes per decoder_.write(), CommonHelix's drain loop (decodes while
-// >= 1024 bytes are buffered) can complete at most ONE frame per write, so
-// one worst-case stereo frame (1152 x 2 ch = 2304 samples) of ring headroom
-// is enough to guarantee pcmCallback never overflows.
-constexpr size_t kRingSamples = 4 * 1024;  // int16 samples = 8 KB ~ 46 ms
-constexpr size_t kMp3ChunkBytes = 64;      // <= 1 decoded frame per write
-constexpr size_t kMinFreeToFeed = 2304;    // 1 worst-case stereo MP3 frame
-constexpr int kMaxChunksPerFeed = 8;       // bounds tick() time; 512 B/tick
-                                           // of MP3 easily outpaces playback
+#include <cstring>
 
-// arduino-libhelix v0.8.5 never forwards setReference()'s pointer to the data
-// callback: provideResult() passes p_caller_data, which the library never
-// assigns (setReference fills the separate p_caller_ref, read only by the
-// unused info callback). So `ref` below is always null and the instance is
-// reached through this single-active-player global instead — same g_self
-// idiom as the apps. Set/cleared on the loop task; pcmCallback runs
-// synchronously inside decoder_.write() on that same task (never the BT task).
-Mp3Player* g_activePlayer = nullptr;
+namespace {
+// RAM knobs. MEASURED budget (HW, 2026-07-14): ~43-51 KB free after BT
+// enable, and the A2DP link itself takes ~14 KB more once established. The
+// whole pipeline (this object ~15.5 KB + the 8 KB ring below) is allocated
+// by MusicApp BEFORE the link comes up, and decoding allocates nothing.
+constexpr size_t kRingSamples = 4 * 1024;  // int16 samples = 8 KB ~ 46 ms
+constexpr size_t kMinFreeSamples = MINIMP3_MAX_SAMPLES_PER_FRAME;  // 1 frame
+constexpr size_t kRefillBelowBytes = 2048;  // keep >= 1 max frame of lookahead
+constexpr int kMaxFramesPerFeed = 3;        // ~78 ms of audio per tick, bounds
+                                            // tick() time and SD reads
 }  // namespace
 
-Mp3Player::Mp3Player() : ring_(kRingSamples) {
-  decoder_.setDataCallback(pcmCallback);
-  g_activePlayer = this;
-}
+Mp3Player::Mp3Player() : ring_(kRingSamples) { mp3dec_init(&dec_); }
 
-Mp3Player::~Mp3Player() {
-  close();
-  if (g_activePlayer == this) g_activePlayer = nullptr;
-}
+Mp3Player::~Mp3Player() { close(); }
 
 bool Mp3Player::open(const char* path, bool flushRing) {
   close();
@@ -43,24 +29,8 @@ bool Mp3Player::open(const char* path, bool flushRing) {
     Serial.printf("[music] open FAILED: %s\n", path);
     return false;
   }
-  badFormat_ = false;
-  // Heap gate for the ~30 KB decoder allocation (7 helix structs + pcm/frame
-  // buffers; close() above already freed any previous instance). libhelix's
-  // allocator hangs in while(true) on OOM instead of failing, so this check
-  // is the ONLY thing standing between a tight session and a silent freeze —
-  // gate generously and let the track fail cleanly.
-  constexpr size_t kDecoderHeapNeed = 34 * 1024;
-  if (esp_get_free_heap_size() < kDecoderHeapNeed) {
-    file_.close();
-    Serial.printf("[music] low heap (%u free) — refusing decoder alloc: %s\n",
-                  static_cast<unsigned>(esp_get_free_heap_size()), path);
-    return false;
-  }
-  if (!decoder_.begin()) {  // ~24 KB MP3InitDecoder alloc can fail (no PSRAM)
-    file_.close();
-    Serial.printf("[music] decoder alloc FAILED: %s\n", path);
-    return false;
-  }
+  inLen_ = 0;
+  mp3dec_init(&dec_);  // fresh sync state per track; no allocation
   if (flushRing) ring_.requestClear();
   Serial.printf("[music] open: %s (%u bytes, heap %u)\n", path,
                 static_cast<unsigned>(file_.size()),
@@ -69,47 +39,62 @@ bool Mp3Player::open(const char* path, bool flushRing) {
 }
 
 void Mp3Player::close() {
-  decoder_.end();
   if (file_) file_.close();
 }
 
 Mp3Player::Feed Mp3Player::feed() {
   if (!file_ || !playing_.load()) return Feed::Ok;
-  for (int i = 0; i < kMaxChunksPerFeed; ++i) {
-    if (ring_.freeSpace() < kMinFreeToFeed) return Feed::Ok;  // ring is topped up
-    uint8_t chunk[kMp3ChunkBytes];
-    const int n = file_.read(chunk, sizeof(chunk));
-    if (n <= 0) return Feed::End;
-    decoder_.write(chunk, static_cast<size_t>(n));
-    if (badFormat_) return Feed::Error;
+  for (int i = 0; i < kMaxFramesPerFeed; ++i) {
+    if (ring_.freeSpace() < kMinFreeSamples) return Feed::Ok;  // topped up
+    if (inLen_ < kRefillBelowBytes) {
+      const int n = file_.read(inBuf_ + inLen_, kInBufBytes - inLen_);
+      if (n > 0) inLen_ += static_cast<size_t>(n);
+    }
+    if (inLen_ == 0) return Feed::End;
+    mp3dec_frame_info_t info;
+    const int samples = mp3dec_decode_frame(
+        &dec_, inBuf_, static_cast<int>(inLen_), pcm_, &info);
+    if (info.frame_bytes == 0) {
+      // No complete frame in the buffer. Mid-file with a full buffer of
+      // unsyncable bytes = a broken file; mid-file otherwise = wait for the
+      // refill above; at EOF the residue is trailing junk = track over.
+      if (file_.available() > 0) {
+        return (inLen_ >= kInBufBytes) ? Feed::Error : Feed::Ok;
+      }
+      return Feed::End;
+    }
+    inLen_ -= static_cast<size_t>(info.frame_bytes);
+    std::memmove(inBuf_, inBuf_ + info.frame_bytes, inLen_);
+    if (samples > 0) {
+      if (info.hz != 44100 || info.channels < 1 || info.channels > 2) {
+        return Feed::Error;  // A2DP pinned at 44100 Hz; no resampler
+      }
+      writePcm(samples, info.channels);
+    }
+    // samples == 0 with frame_bytes > 0: junk skipped — keep going.
   }
   return Feed::Ok;
 }
 
-void Mp3Player::pcmCallback(MP3FrameInfo& info, short* pcm, size_t len,
-                            void* /*ref — always null, see g_activePlayer*/) {
-  auto* self = g_activePlayer;
-  if (self == nullptr) return;
-  if (info.samprate != 44100 || info.nChans < 1 || info.nChans > 2) {
-    self->badFormat_ = true;  // A2DP is pinned at 44100 Hz; no resampler
+void Mp3Player::writePcm(int samplesPerChannel, int channels) {
+  if (channels == 2) {
+    // Already interleaved stereo; the kMinFreeSamples gate in feed()
+    // guarantees this never overflows the ring.
+    ring_.write(pcm_, static_cast<size_t>(samplesPerChannel) * 2);
     return;
-  }
-  if (info.nChans == 2) {
-    self->ring_.write(pcm, len);  // already interleaved stereo; gate in feed()
-    return;                       // guarantees this never overflows
   }
   // Mono: duplicate each sample into L+R, in small stack chunks.
   int16_t stereo[128];
-  size_t i = 0;
-  while (i < len) {
+  int i = 0;
+  while (i < samplesPerChannel) {
     size_t j = 0;
-    while (j < 64 && i < len) {
-      stereo[j * 2] = pcm[i];
-      stereo[j * 2 + 1] = pcm[i];
+    while (j < 64 && i < samplesPerChannel) {
+      stereo[j * 2] = pcm_[i];
+      stereo[j * 2 + 1] = pcm_[i];
       ++j;
       ++i;
     }
-    self->ring_.write(stereo, j * 2);
+    ring_.write(stereo, j * 2);
   }
 }
 
