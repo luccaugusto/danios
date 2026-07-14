@@ -372,8 +372,8 @@ void MusicApp::trackClicked(lv_event_t* e) {
   g_self->pendingSelect_ = static_cast<int>(
       reinterpret_cast<intptr_t>(lv_event_get_user_data(e)));
   // Albums-view loose rows target looseTracks_; tracks-view rows target
-  // browseTracks_. Captured at click time — the view can't change before the
-  // async call runs (both run on the LVGL task).
+  // browseTracks_. Captured at click time; asyncSelectTrack re-checks the
+  // view before acting (a synchronous handleBack can flip it in between).
   g_self->pendingSelectIsBrowse_ = (g_self->view_ == View::Tracks);
   lv_async_call(asyncSelectTrack, g_self);  // refreshList deletes this button
 }
