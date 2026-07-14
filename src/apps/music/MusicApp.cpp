@@ -16,9 +16,10 @@ MusicApp* g_self = nullptr;  // single instance (same pattern as SettingsApp)
 
 // LVGL-heap guard: every list row is an lv_btn + label out of the 24 KB LVGL
 // pool (F5 halved the budgeted 48 KB to leave headroom for bluedroid — see
-// include/lv_conf.h). Tracks beyond the cap still play (next/previous cycle
-// through the whole playlist); they just aren't tappable rows. The cap is
-// visible in the UI ("+N"), never silent.
+// include/lv_conf.h). The cap applies PER VIEW (albums view, each album's
+// tracks view). Tracks beyond the cap still play (next/previous cycle through
+// the whole playlist); they just aren't tappable rows. The cap is visible in
+// the UI ("+N"), never silent.
 constexpr int kMaxListRows = 28;
 }  // namespace
 
@@ -27,6 +28,14 @@ void MusicApp::onExit() {
   delay(20);                        // let an in-flight BT callback drain
   player_.reset();
   root_ = nowPlaying_ = playPauseLabel_ = list_ = nullptr;
+  view_ = View::Albums;  // fresh browse state next session (no persistence —
+  albums_.clear();       // A4 owns no NVS keys)
+  looseTracks_.clear();
+  browseTracks_.clear();
+  browseAlbum_.clear();
+  playingPrefix_.clear();
+  pendingSelect_ = pendingAlbum_ = -1;
+  pendingSelectIsBrowse_ = false;
   // The launcher requests RadioMode::None after this — BT teardown is its job.
 }
 
@@ -57,9 +66,12 @@ void MusicApp::buildUI(lv_obj_t* parent) {
     return;
   }
 
-  // Spec §4.2 step 4: /music -> playlist (sorted basenames, F3 contract).
-  playlist_.setFiles(storage_.listFiles("/music", ".mp3"));
-  if (playlist_.count() == 0) {
+  // A4.1: land on the albums view (folders = albums, one level deep, plus
+  // loose root tracks). Nothing preloads — the playlist stays empty until the
+  // first tap, so the transport starts as a no-op ("-" in now-playing).
+  albums_ = storage_.listDirs("/music");
+  looseTracks_ = storage_.listFiles("/music", ".mp3");
+  if (albums_.empty() && looseTracks_.empty()) {
     showMessage(
         "Nenhuma música no cartão.\n"
         "Coloque arquivos .mp3 na pasta /music.");
@@ -74,8 +86,9 @@ void MusicApp::buildUI(lv_obj_t* parent) {
   bt_.setSource(&Mp3Player::sourceCallback, player_.get());
 
   buildPlayerUI();
-  if (!openTrack(true)) handleBadTrack();  // load track 1, start paused —
-                                           // the user picks (roadmap §1 E2E)
+  view_ = View::Albums;
+  refreshList();
+  refreshNowPlaying();  // "-" + play glyph until the first tap
 }
 
 void MusicApp::tick(uint32_t /*now_ms*/) {
@@ -84,8 +97,9 @@ void MusicApp::tick(uint32_t /*now_ms*/) {
     case Mp3Player::Feed::Ok:
       break;
     case Mp3Player::Feed::End:
-      // Track finished: auto-advance with wraparound. No ring flush — the
-      // buffered tail plays out while the next track fills in behind it.
+      // Track finished: auto-advance with wraparound WITHIN the playing album.
+      // No ring flush — the buffered tail plays out while the next track
+      // fills in behind it.
       if (!playlist_.next()) {
         player_->setPlaying(false);
         refreshNowPlaying();
@@ -99,6 +113,16 @@ void MusicApp::tick(uint32_t /*now_ms*/) {
   }
 }
 
+bool MusicApp::handleBack() {
+  // Launcher top-bar hook — runs from the launcher's own button, never from
+  // inside list_'s event context, so rebuilding the list here is safe.
+  if (list_ != nullptr && view_ == View::Tracks) {
+    showAlbumsView();
+    return true;  // consumed: stepped up one level
+  }
+  return false;  // albums view / message / connect screen -> launcher exits
+}
+
 void MusicApp::showMessage(const char* text) {
   lv_obj_clean(root_);
   nowPlaying_ = playPauseLabel_ = list_ = nullptr;  // died with the clean
@@ -106,6 +130,27 @@ void MusicApp::showMessage(const char* text) {
   lv_obj_set_width(lbl, LV_PCT(100));
   lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
   lv_label_set_text(lbl, text);
+}
+
+void MusicApp::showAlbumsView() {
+  view_ = View::Albums;
+  browseAlbum_.clear();
+  browseTracks_.clear();
+  albums_ = storage_.listDirs("/music");             // re-read: stays fresh
+  looseTracks_ = storage_.listFiles("/music", ".mp3");  // across card edits
+  refreshList();
+}
+
+void MusicApp::showTracksView(int albumIdx) {
+  view_ = View::Tracks;
+  browseAlbum_ = albums_[static_cast<size_t>(albumIdx)];
+  const std::string dir = "/music/" + browseAlbum_;
+  browseTracks_ = storage_.listFiles(dir.c_str(), ".mp3");
+  refreshList();
+}
+
+std::string MusicApp::browsePrefix() const {
+  return "/music/" + browseAlbum_ + "/";
 }
 
 void MusicApp::buildPlayerUI() {
@@ -158,13 +203,13 @@ void MusicApp::buildPlayerUI() {
   list_ = lv_list_create(root_);
   lv_obj_set_width(list_, LV_PCT(100));
   lv_obj_set_flex_grow(list_, 1);
-  refreshList();
+  // Callers pick the view and call refreshList() themselves.
 }
 
 bool MusicApp::openTrack(bool flushRing) {
   const int cur = playlist_.currentIndex();
-  if (cur < 0) return false;
-  const std::string path = std::string("/music/") + playlist_.fileAt(cur);
+  if (cur < 0 || playingPrefix_.empty()) return false;
+  const std::string path = playingPrefix_ + playlist_.fileAt(cur);
   if (!player_->open(path.c_str(), flushRing)) return false;
   refreshNowPlaying();
   refreshList();
@@ -174,7 +219,7 @@ bool MusicApp::openTrack(bool flushRing) {
 void MusicApp::changeTrack(int dir) {
   const bool wasPlaying = player_->playing();
   const bool moved = (dir > 0) ? playlist_.next() : playlist_.previous();
-  if (!moved) return;
+  if (!moved) return;  // also covers the empty not-yet-loaded playlist
   if (openTrack(true)) {
     player_->setPlaying(wasPlaying);
     refreshNowPlaying();
@@ -217,22 +262,70 @@ void MusicApp::refreshNowPlaying() {
 void MusicApp::refreshList() {
   if (list_ == nullptr) return;
   lv_obj_clean(list_);
-  const int shown =
-      playlist_.count() < kMaxListRows ? playlist_.count() : kMaxListRows;
+  if (view_ == View::Albums) {
+    refreshAlbumsList();
+  } else {
+    refreshTracksList();
+  }
+}
+
+void MusicApp::refreshAlbumsList() {
+  const int nAlbums = static_cast<int>(albums_.size());
+  const int total = nAlbums + static_cast<int>(looseTracks_.size());
+  const int shown = total < kMaxListRows ? total : kMaxListRows;
   for (int i = 0; i < shown; ++i) {
-    const bool current = (i == playlist_.currentIndex());
+    if (i < nAlbums) {
+      lv_obj_t* btn =
+          lv_list_add_btn(list_, LV_SYMBOL_DIRECTORY, albums_[i].c_str());
+      lv_obj_add_event_cb(btn, albumClicked, LV_EVENT_CLICKED,
+                          reinterpret_cast<void*>(static_cast<intptr_t>(i)));
+    } else {
+      const int t = i - nAlbums;  // loose root track: plays directly
+      const bool current =
+          (playingPrefix_ == "/music/" && t == playlist_.currentIndex());
+      lv_obj_t* btn =
+          lv_list_add_btn(list_, current ? LV_SYMBOL_PLAY : LV_SYMBOL_AUDIO,
+                          trackTitle(looseTracks_[t]).c_str());
+      if (playingPrefix_ == "/music/" && playlist_.isBad(t)) {
+        lv_obj_set_style_opa(btn, LV_OPA_40, 0);
+      }
+      lv_obj_add_event_cb(btn, trackClicked, LV_EVENT_CLICKED,
+                          reinterpret_cast<void*>(static_cast<intptr_t>(t)));
+      if (current) lv_obj_scroll_to_view(btn, LV_ANIM_OFF);
+    }
+  }
+  if (total > shown) {
+    char more[32];
+    std::snprintf(more, sizeof(more), "+%d não listados", total - shown);
+    lv_list_add_text(list_, more);  // LVGL copies the text
+  }
+}
+
+void MusicApp::refreshTracksList() {
+  if (browseTracks_.empty()) {
+    lv_list_add_text(list_, "Nenhuma música neste álbum.");
+    return;  // back still works (handleBack -> albums view)
+  }
+  // Highlight/grey only when the browsed album IS the playing one — indexes
+  // into playlist_ only line up then.
+  const bool playingThis = (playingPrefix_ == browsePrefix());
+  const int total = static_cast<int>(browseTracks_.size());
+  const int shown = total < kMaxListRows ? total : kMaxListRows;
+  for (int i = 0; i < shown; ++i) {
+    const bool current = playingThis && i == playlist_.currentIndex();
     lv_obj_t* btn =
         lv_list_add_btn(list_, current ? LV_SYMBOL_PLAY : LV_SYMBOL_AUDIO,
-                        playlist_.titleAt(i).c_str());
-    if (playlist_.isBad(i)) lv_obj_set_style_opa(btn, LV_OPA_40, 0);
+                        trackTitle(browseTracks_[i]).c_str());
+    if (playingThis && playlist_.isBad(i)) {
+      lv_obj_set_style_opa(btn, LV_OPA_40, 0);
+    }
     lv_obj_add_event_cb(btn, trackClicked, LV_EVENT_CLICKED,
                         reinterpret_cast<void*>(static_cast<intptr_t>(i)));
     if (current) lv_obj_scroll_to_view(btn, LV_ANIM_OFF);
   }
-  if (playlist_.count() > shown) {
+  if (total > shown) {
     char more[32];
-    std::snprintf(more, sizeof(more), "+%d não listadas",
-                  playlist_.count() - shown);
+    std::snprintf(more, sizeof(more), "+%d não listadas", total - shown);
     lv_list_add_text(list_, more);  // LVGL copies the text
   }
 }
@@ -242,6 +335,7 @@ void MusicApp::refreshList() {
 // lv_async_call (LVGL: never delete the current event target in its handler).
 
 void MusicApp::playPauseClicked(lv_event_t* /*e*/) {
+  if (g_self->playlist_.currentIndex() < 0) return;  // nothing loaded yet
   g_self->player_->setPlaying(!g_self->player_->playing());
   g_self->refreshNowPlaying();
 }
@@ -256,15 +350,47 @@ void MusicApp::volumeChanged(lv_event_t* e) {
       static_cast<uint8_t>(lv_slider_get_value(slider)));
 }
 
+void MusicApp::albumClicked(lv_event_t* e) {
+  g_self->pendingAlbum_ = static_cast<int>(
+      reinterpret_cast<intptr_t>(lv_event_get_user_data(e)));
+  lv_async_call(asyncOpenAlbum, g_self);  // showTracksView deletes this button
+}
+
+void MusicApp::asyncOpenAlbum(void* userData) {
+  auto* self = static_cast<MusicApp*>(userData);
+  if (self->root_ == nullptr || self->list_ == nullptr) return;  // app closed
+  if (self->pendingAlbum_ < 0 ||
+      self->pendingAlbum_ >= static_cast<int>(self->albums_.size())) {
+    return;  // stale row
+  }
+  self->showTracksView(self->pendingAlbum_);
+}
+
 void MusicApp::trackClicked(lv_event_t* e) {
   g_self->pendingSelect_ = static_cast<int>(
       reinterpret_cast<intptr_t>(lv_event_get_user_data(e)));
+  // Albums-view loose rows target looseTracks_; tracks-view rows target
+  // browseTracks_. Captured at click time — the view can't change before the
+  // async call runs (both run on the LVGL task).
+  g_self->pendingSelectIsBrowse_ = (g_self->view_ == View::Tracks);
   lv_async_call(asyncSelectTrack, g_self);  // refreshList deletes this button
 }
 
 void MusicApp::asyncSelectTrack(void* userData) {
   auto* self = static_cast<MusicApp*>(userData);
   if (self->root_ == nullptr || self->player_ == nullptr) return;  // app closed
+  const bool fromBrowse = self->pendingSelectIsBrowse_;
+  const std::string prefix =
+      fromBrowse ? self->browsePrefix() : std::string("/music/");
+  const std::vector<std::string>& src =
+      fromBrowse ? self->browseTracks_ : self->looseTracks_;
+  if (self->playingPrefix_ != prefix) {
+    // Cross-album (or first-ever) selection: the tapped view's listing
+    // becomes the playlist. Skip-bad state resets with it (spec: "bad" is
+    // per-session bookkeeping, not persisted anywhere).
+    self->playlist_.setFiles(src);
+    self->playingPrefix_ = prefix;
+  }
   if (!self->playlist_.select(self->pendingSelect_)) return;  // bad/stale row
   if (self->openTrack(true)) {
     self->player_->setPlaying(true);  // tapping a song means "play it"
