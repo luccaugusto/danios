@@ -94,6 +94,26 @@ bool needsAttention(const PetState& st, uint32_t todayKey);
 // Growth stage from total days alive.
 Stage growthStage(const PetState& st, uint32_t todayKey);
 
+// --- Interactions (spam-tap safe; return true on the day's FIRST advance) ---
+// True while the clock is inside the night window [20:00, 07:00) (crosses
+// midnight). A negative minute (unknown clock) is never night.
+bool isNightMinute(int minutesSinceMidnight);
+
+// Feed advances Hunger; a Treat also advances Happiness (spec: no downsides).
+bool feed(PetState& st, Food food, uint32_t todayKey, int minutesSinceMidnight);
+// Play advances Happiness.
+bool play(PetState& st, uint32_t todayKey, int minutesSinceMidnight);
+// Clean removes one mess sprite; the day's first clean advances Hygiene.
+bool clean(PetState& st, uint32_t todayKey, int minutesSinceMidnight);
+
+// Scold outcomes (visit-scoped; the UI picks one). Discipline is clamped to
+// [kDiscMin, kDiscMax] and does NOT feed health/death (spec: future branch).
+void scoldReward(PetState& st);   // scolded in time  -> disc + 1
+void scoldPenalty(PetState& st);  // window missed    -> disc - 1
+
+const char* foodLabelPt(Food food);
+const char* foodSprite(Food food);
+
 // UI strings / art paths (Portuguese device UI; art under S:/art/pet/).
 const char* needLevelLabelPt(NeedLevel level);
 const char* stageSprite(Stage stage);

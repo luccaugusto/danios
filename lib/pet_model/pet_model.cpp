@@ -12,6 +12,26 @@ NeedLevel levelFromKey(uint32_t lastKey, uint32_t todayKey) {
   if (d == 1) return NeedLevel::Okay;
   return NeedLevel::Neglected;           // 2 .. kDaysToCritical-1
 }
+
+// Advance a need's dateKey to today, but only the first time today. Returns
+// true when it actually advanced (the day's first interaction with the need).
+bool satisfyOncePerDay(uint32_t& key, uint32_t todayKey) {
+  if (todayKey == 0 || key == todayKey) return false;
+  key = todayKey;
+  return true;
+}
+
+// Mark the current night as "disturbed" so tomorrow's dawn skips the energy
+// award. 20:00-23:59 belongs to tonight (today); 00:00-06:59 belongs to the
+// night that began yesterday. Daytime interactions do not mark anything.
+void recordNightInteraction(PetState& st, uint32_t todayKey, int mins) {
+  if (todayKey == 0 || mins < 0) return;
+  if (mins >= petcfg::kNightStartMin) {
+    st.nightint = todayKey;  // evening: this night starts today
+  } else if (mins < petcfg::kDawnMin) {
+    st.nightint = dateKey(addDays(fromDateKey(todayKey), -1));  // pre-dawn
+  }
+}
 }  // namespace
 
 PetState loadPet(ISettingsStore& store) {
@@ -115,5 +135,53 @@ const char* stageSprite(Stage stage) {
     case Stage::Child: return "S:/art/pet/child.bin";
     case Stage::Teen:  return "S:/art/pet/teen.bin";
     default:           return "S:/art/pet/adult.bin";
+  }
+}
+
+bool isNightMinute(int minutesSinceMidnight) {
+  if (minutesSinceMidnight < 0) return false;
+  return minutesSinceMidnight >= petcfg::kNightStartMin ||
+         minutesSinceMidnight < petcfg::kDawnMin;
+}
+
+bool feed(PetState& st, Food food, uint32_t todayKey, int mins) {
+  recordNightInteraction(st, todayKey, mins);
+  const bool advanced = satisfyOncePerDay(st.fed, todayKey);
+  if (food == Food::Treat) satisfyOncePerDay(st.played, todayKey);  // also cheers
+  return advanced;
+}
+
+bool play(PetState& st, uint32_t todayKey, int mins) {
+  recordNightInteraction(st, todayKey, mins);
+  return satisfyOncePerDay(st.played, todayKey);
+}
+
+bool clean(PetState& st, uint32_t todayKey, int mins) {
+  recordNightInteraction(st, todayKey, mins);
+  if (st.mess > 0) --st.mess;  // remove the tapped mess sprite (cosmetic)
+  return satisfyOncePerDay(st.cleaned, todayKey);  // first clean satisfies Hygiene
+}
+
+void scoldReward(PetState& st) {
+  if (st.disc < petcfg::kDiscMax) ++st.disc;
+}
+
+void scoldPenalty(PetState& st) {
+  if (st.disc > petcfg::kDiscMin) --st.disc;
+}
+
+const char* foodLabelPt(Food food) {
+  switch (food) {
+    case Food::Snack: return "Lanche";
+    case Food::Meal:  return "Refeição";
+    default:          return "Docinho";
+  }
+}
+
+const char* foodSprite(Food food) {
+  switch (food) {
+    case Food::Snack: return "S:/art/pet/food_snack.bin";
+    case Food::Meal:  return "S:/art/pet/food_meal.bin";
+    default:          return "S:/art/pet/food_treat.bin";
   }
 }

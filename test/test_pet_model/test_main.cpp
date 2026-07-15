@@ -175,6 +175,112 @@ static void test_labels_and_sprites() {
   TEST_ASSERT_EQUAL_STRING("S:/art/pet/adult.bin", stageSprite(Stage::Adult));
 }
 
+static void test_night_window_boundaries() {
+  TEST_ASSERT_FALSE(isNightMinute(7 * 60));       // 07:00 exactly -> day
+  TEST_ASSERT_FALSE(isNightMinute(12 * 60));      // noon -> day
+  TEST_ASSERT_FALSE(isNightMinute(19 * 60 + 59)); // 19:59 -> day
+  TEST_ASSERT_TRUE(isNightMinute(20 * 60));       // 20:00 -> night
+  TEST_ASSERT_TRUE(isNightMinute(23 * 60 + 59));  // 23:59 -> night
+  TEST_ASSERT_TRUE(isNightMinute(0));             // 00:00 -> night
+  TEST_ASSERT_TRUE(isNightMinute(6 * 60 + 59));   // 06:59 -> night
+  TEST_ASSERT_FALSE(isNightMinute(-1));           // unknown clock -> not night
+}
+
+static void test_feed_first_of_day_advances_then_spam_no_op() {
+  PetState st = hatched(20260706u);       // fed = day 0
+  const uint32_t d1 = dayPlus(1);
+  TEST_ASSERT_TRUE(feed(st, Food::Meal, d1, 12 * 60));   // first feed today
+  TEST_ASSERT_EQUAL_UINT32(d1, st.fed);
+  TEST_ASSERT_FALSE(feed(st, Food::Meal, d1, 12 * 60));  // spam: no advance
+  TEST_ASSERT_EQUAL_UINT32(d1, st.fed);                  // still day 1
+}
+
+static void test_treat_also_cheers() {
+  PetState st = hatched(20260706u);
+  const uint32_t d1 = dayPlus(1);
+  st.played = 0;  // pretend Happiness never satisfied
+  TEST_ASSERT_TRUE(feed(st, Food::Treat, d1, 12 * 60));
+  TEST_ASSERT_EQUAL_UINT32(d1, st.fed);
+  TEST_ASSERT_EQUAL_UINT32(d1, st.played);  // Treat satisfied Happiness too
+}
+
+static void test_snack_and_meal_do_not_cheer() {
+  PetState st = hatched(20260706u);
+  const uint32_t d1 = dayPlus(1);
+  st.played = 0;
+  feed(st, Food::Snack, d1, 12 * 60);
+  TEST_ASSERT_EQUAL_UINT32(0u, st.played);  // Snack: Hunger only
+  feed(st, Food::Meal, d1, 12 * 60);
+  TEST_ASSERT_EQUAL_UINT32(0u, st.played);  // Meal: Hunger only
+}
+
+static void test_play_and_clean() {
+  PetState st = hatched(20260706u);
+  const uint32_t d1 = dayPlus(1);
+  TEST_ASSERT_TRUE(play(st, d1, 12 * 60));
+  TEST_ASSERT_EQUAL_UINT32(d1, st.played);
+
+  st.mess = 2;
+  TEST_ASSERT_TRUE(clean(st, d1, 12 * 60));  // first clean of day satisfies Hygiene
+  TEST_ASSERT_EQUAL_UINT32(d1, st.cleaned);
+  TEST_ASSERT_EQUAL_INT(1, (int)st.mess);    // removed one mess sprite
+  TEST_ASSERT_FALSE(clean(st, d1, 12 * 60)); // second clean: Hygiene already done
+  TEST_ASSERT_EQUAL_INT(0, (int)st.mess);    // but still clears a mess
+}
+
+static void test_interactions_noop_on_unknown_clock() {
+  PetState st = hatched(20260706u);
+  const uint32_t before = st.fed;
+  TEST_ASSERT_FALSE(feed(st, Food::Meal, 0u, 12 * 60));  // clock unknown
+  TEST_ASSERT_EQUAL_UINT32(before, st.fed);
+}
+
+static void test_daytime_interaction_leaves_nightint() {
+  PetState st = hatched(20260706u);
+  st.nightint = 0;
+  feed(st, Food::Meal, dayPlus(1), 12 * 60);  // noon: not a night interaction
+  TEST_ASSERT_EQUAL_UINT32(0u, st.nightint);
+}
+
+static void test_evening_interaction_marks_tonight() {
+  PetState st = hatched(20260706u);
+  const uint32_t d1 = dayPlus(1);          // 2026-07-07
+  play(st, d1, 21 * 60);                   // 21:00 -> tonight starts today
+  TEST_ASSERT_EQUAL_UINT32(d1, st.nightint);
+}
+
+static void test_early_morning_interaction_marks_previous_night() {
+  PetState st = hatched(20260706u);
+  const uint32_t d1 = dayPlus(1);          // 2026-07-07
+  play(st, d1, 2 * 60);                    // 02:00 -> belongs to night of 07-06
+  TEST_ASSERT_EQUAL_UINT32(dayPlus(0), st.nightint);
+}
+
+static void test_scold_reward_and_penalty_clamp() {
+  PetState st = hatched();
+  st.disc = petcfg::kDiscMax;
+  scoldReward(st);
+  TEST_ASSERT_EQUAL_INT(petcfg::kDiscMax, (int)st.disc);  // clamped at ceiling
+  st.disc = petcfg::kDiscMin;
+  scoldPenalty(st);
+  TEST_ASSERT_EQUAL_INT(petcfg::kDiscMin, (int)st.disc);  // clamped at floor
+  st.disc = 0;
+  scoldReward(st);
+  TEST_ASSERT_EQUAL_INT(1, (int)st.disc);
+  scoldPenalty(st);
+  scoldPenalty(st);
+  TEST_ASSERT_EQUAL_INT(-1, (int)st.disc);
+}
+
+static void test_food_strings() {
+  TEST_ASSERT_EQUAL_STRING("Lanche", foodLabelPt(Food::Snack));
+  TEST_ASSERT_EQUAL_STRING("Refeição", foodLabelPt(Food::Meal));
+  TEST_ASSERT_EQUAL_STRING("Docinho", foodLabelPt(Food::Treat));
+  TEST_ASSERT_EQUAL_STRING("S:/art/pet/food_snack.bin", foodSprite(Food::Snack));
+  TEST_ASSERT_EQUAL_STRING("S:/art/pet/food_meal.bin", foodSprite(Food::Meal));
+  TEST_ASSERT_EQUAL_STRING("S:/art/pet/food_treat.bin", foodSprite(Food::Treat));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_defaults_are_an_egg);
@@ -192,5 +298,16 @@ int main(int, char**) {
   RUN_TEST(test_badge_on_for_dead_pet);
   RUN_TEST(test_growth_stage_thresholds);
   RUN_TEST(test_labels_and_sprites);
+  RUN_TEST(test_night_window_boundaries);
+  RUN_TEST(test_feed_first_of_day_advances_then_spam_no_op);
+  RUN_TEST(test_treat_also_cheers);
+  RUN_TEST(test_snack_and_meal_do_not_cheer);
+  RUN_TEST(test_play_and_clean);
+  RUN_TEST(test_interactions_noop_on_unknown_clock);
+  RUN_TEST(test_daytime_interaction_leaves_nightint);
+  RUN_TEST(test_evening_interaction_marks_tonight);
+  RUN_TEST(test_early_morning_interaction_marks_previous_night);
+  RUN_TEST(test_scold_reward_and_penalty_clamp);
+  RUN_TEST(test_food_strings);
   return UNITY_END();
 }
