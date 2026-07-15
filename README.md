@@ -195,4 +195,4 @@ Design is approved and hardware is in hand. Pick up at either:
     - [ ] `sd/art/pomo/work.bin` — work-phase sprite
     - [ ] `sd/art/pomo/break.bin` — break-phase sprite
   - Launcher icon (wired in `app_catalog.h`):
-    - [x] `sd/art/icons/pomodoro.bin` — flat tomato (`assets/icons/pomodoro.svg`)
+    - [x] `sd/art/icons/pomodoro.bin` — tomato (`assets/icons/pomodoro.svg`, noto-style from SVG Repo)
