@@ -104,6 +104,10 @@ void PetApp::onExit() {
     lv_obj_del(toastLbl_);
     toastLbl_ = nullptr;
   }
+  if (modal_) {
+    lv_obj_del(modal_);  // orphaned naming/food modal (launcher never cleans lv_layer_top())
+    modal_ = nullptr;
+  }
   // Misbehaved this visit and never scolded -> missed the window (spec).
   if (misbehavesThisVisit_ && !scoldedThisVisit_ && st_.alive && todayKey() != 0) {
     scoldPenalty(st_);
@@ -254,6 +258,8 @@ void PetApp::askName() {
   lv_keyboard_set_textarea(kb, ta);
   lv_obj_add_event_cb(kb, onNameKeyboard, LV_EVENT_READY, this);
   lv_obj_add_event_cb(kb, onNameKeyboard, LV_EVENT_CANCEL, this);
+
+  modal_ = modal;
 }
 
 void PetApp::doHatch(const std::string& name) {
@@ -288,6 +294,8 @@ void PetApp::openFoodTray() {
         btn, [](lv_event_t* ev) { delete static_cast<FoodCtx*>(lv_event_get_user_data(ev)); },
         LV_EVENT_DELETE, ctx);
   }
+
+  modal_ = modal;
 }
 
 void PetApp::doFeed(Food food) {
@@ -376,6 +384,7 @@ void PetApp::onNameKeyboard(lv_event_t* e) {
   // READY or CANCEL: tear the modal down async (never delete an ancestor of
   // the object whose event is mid-dispatch).
   lv_obj_del_async(lv_obj_get_parent(kb));
+  self->modal_ = nullptr;
 }
 
 void PetApp::onFeedClicked(lv_event_t* e) {
@@ -399,6 +408,7 @@ void PetApp::onFoodChosen(lv_event_t* e) {
   PetApp* self = ctx->self;
   const Food food = ctx->food;
   lv_obj_del_async(ctx->modal);  // close the tray (frees ctx via LV_EVENT_DELETE)
+  self->modal_ = nullptr;
   self->doFeed(food);
 }
 

@@ -77,4 +77,5 @@ class PetApp : public App {
   lv_obj_t* petImg_ = nullptr;       // current stage sprite (for bounce)
   lv_obj_t* toastLbl_ = nullptr;     // transient toast on lv_layer_top()
   lv_timer_t* toastTimer_ = nullptr; // one-shot that dismisses toastLbl_
+  lv_obj_t* modal_ = nullptr;  // active naming/food modal on lv_layer_top()
 };
