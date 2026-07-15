@@ -183,9 +183,8 @@ Design is approved and hardware is in hand. Pick up at either:
     - [ ] `food_snack.bin`
     - [ ] `food_meal.bin`
     - [ ] `food_treat.bin`
-  - Launcher icon (out of the A5 plan's scope; needs wiring in
-    `app_catalog.h` like oracle's):
-    - [ ] `sd/art/icons/pet.bin`
+  - Launcher icon (wired in `app_catalog.h`):
+    - [x] `sd/art/icons/pet.bin` (`assets/icons/pet.svg`)
 - [ ] rename pet app from bichinho to Pet
 - [ ] draw the images for the pomodoro app — 2 sprites. Same workflow
       as weather/pet: `assets/icons/svg_to_lvgl_bin.py <png> sd/art/pomo/<name>.bin`,
