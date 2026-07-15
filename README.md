@@ -187,3 +187,12 @@ Design is approved and hardware is in hand. Pick up at either:
     `app_catalog.h` like oracle's):
     - [ ] `sd/art/icons/pet.bin`
 - [ ] rename pet app from bichinho to Pet
+- [ ] draw the images for the pomodoro app — 2 sprites + 1 icon. Same workflow
+      as weather/pet: `assets/icons/svg_to_lvgl_bin.py <png> sd/art/pomo/<name>.bin`,
+      then copy `sd/` onto the card. The app shows colored placeholder boxes
+      (red = trabalho, green = pausa) until the files exist.
+  - Status sprites (rendered 120×120 in `src/apps/pomodoro/PomodoroApp.cpp`):
+    - [ ] `sd/art/pomo/work.bin` — work-phase sprite
+    - [ ] `sd/art/pomo/break.bin` — break-phase sprite
+  - Launcher icon (wire in `app_catalog.h` like oracle's once drawn):
+    - [ ] `sd/art/icons/pomodoro.bin`
