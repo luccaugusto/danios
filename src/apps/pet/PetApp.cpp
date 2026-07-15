@@ -110,8 +110,11 @@ void PetApp::onExit() {
   }
   // Misbehaved this visit and never scolded -> missed the window (spec).
   if (misbehavesThisVisit_ && !scoldedThisVisit_ && st_.alive && todayKey() != 0) {
-    scoldPenalty(st_);
-    save();
+    petTick(st_, todayKey(), nowMinutes());  // re-sync before penalizing/saving
+    if (st_.alive) {
+      scoldPenalty(st_);
+      save();
+    }
   }
   petImg_ = nullptr;
 }
@@ -241,6 +244,7 @@ void PetApp::buildMemorial() {
 // --- Flows -----------------------------------------------------------------
 
 void PetApp::askName() {
+  if (modal_) return;  // already open: don't orphan the first modal
   lv_obj_t* modal = lv_obj_create(lv_layer_top());
   lv_obj_set_size(modal, LV_PCT(100), LV_PCT(100));
   lv_obj_set_flex_flow(modal, LV_FLEX_FLOW_COLUMN);
@@ -271,6 +275,7 @@ void PetApp::doHatch(const std::string& name) {
 }
 
 void PetApp::openFoodTray() {
+  if (modal_) return;  // already open: don't orphan the first modal
   lv_obj_t* modal = lv_obj_create(lv_layer_top());
   lv_obj_set_size(modal, 210, 250);
   lv_obj_center(modal);
@@ -299,6 +304,11 @@ void PetApp::openFoodTray() {
 }
 
 void PetApp::doFeed(Food food) {
+  if (petTick(st_, todayKey(), nowMinutes())) {  // re-sync; may report death
+    save();
+    render();  // -> Memorial
+    return;
+  }
   feed(st_, food, todayKey(), nowMinutes());
   save();
   render();
@@ -307,6 +317,11 @@ void PetApp::doFeed(Food food) {
 }
 
 void PetApp::doPlay() {
+  if (petTick(st_, todayKey(), nowMinutes())) {  // re-sync; may report death
+    save();
+    render();  // -> Memorial
+    return;
+  }
   play(st_, todayKey(), nowMinutes());
   save();
   render();
@@ -315,6 +330,11 @@ void PetApp::doPlay() {
 }
 
 void PetApp::doClean() {
+  if (petTick(st_, todayKey(), nowMinutes())) {  // re-sync; may report death
+    save();
+    render();  // -> Memorial
+    return;
+  }
   clean(st_, todayKey(), nowMinutes());
   save();
   render();
@@ -326,7 +346,7 @@ void PetApp::doScold() {
   scoldedThisVisit_ = true;
   save();
   render();  // drops the "Dar bronca" button for the rest of the visit
-  toast("Prometo me comportar!");
+  toast("*snif* Desculpa...");
 }
 
 void PetApp::doRebirth() {
