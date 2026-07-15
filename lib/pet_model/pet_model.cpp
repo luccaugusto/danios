@@ -8,9 +8,9 @@ NeedLevel levelFromKey(uint32_t lastKey, uint32_t todayKey) {
   if (lastKey == 0 || todayKey == 0) return NeedLevel::Great;  // unknown: benign
   int32_t d = daysBetween(fromDateKey(lastKey), fromDateKey(todayKey));
   if (d <= 0) return NeedLevel::Great;   // same day or clock went backwards
+  if (d >= petcfg::kDaysToCritical) return NeedLevel::Critical;
   if (d == 1) return NeedLevel::Okay;
-  if (d == 2) return NeedLevel::Neglected;
-  return NeedLevel::Critical;            // 3+ days
+  return NeedLevel::Neglected;           // 2 .. kDaysToCritical-1
 }
 }  // namespace
 
