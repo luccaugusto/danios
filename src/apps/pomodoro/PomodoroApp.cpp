@@ -83,14 +83,14 @@ void PomodoroApp::buildStepperRow(lv_obj_t* parent, lv_coord_t y,
 
   lv_obj_t* minus = lv_btn_create(parent);
   lv_obj_set_size(minus, 32, 24);
-  lv_obj_align(minus, LV_ALIGN_TOP_RIGHT, -88, y);
+  lv_obj_align(minus, LV_ALIGN_TOP_RIGHT, -108, y);
   lv_obj_t* ml = lv_label_create(minus);
   lv_label_set_text(ml, "-");
   lv_obj_center(ml);
   lv_obj_add_event_cb(minus, minusCb, LV_EVENT_CLICKED, this);
 
   *valLbl = lv_label_create(parent);
-  lv_obj_set_width(*valLbl, 44);
+  lv_obj_set_width(*valLbl, 64);
   lv_obj_set_style_text_align(*valLbl, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(*valLbl, LV_ALIGN_TOP_RIGHT, -42, y + 6);
 
