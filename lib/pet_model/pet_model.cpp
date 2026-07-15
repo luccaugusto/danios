@@ -234,6 +234,7 @@ bool play(PetState& st, uint32_t todayKey, int mins) {
 }
 
 bool clean(PetState& st, uint32_t todayKey, int mins) {
+  if (todayKey == 0) return false;  // clock unknown: no mutation
   recordNightInteraction(st, todayKey, mins);
   if (st.mess > 0) --st.mess;  // remove the tapped mess sprite (cosmetic)
   return satisfyOncePerDay(st.cleaned, todayKey);  // first clean satisfies Hygiene
@@ -325,6 +326,7 @@ bool onAppOpen(PetState& st, uint32_t todayKey, int mins) {
     st.mess = static_cast<uint8_t>(newMess);
     st.care = scoreCareDays(st.care, st, last, todayKey);
     st.scold = todayKey;
+    return misbehavesOn(todayKey, st.birth);  // only the day's first open rolls the tantrum
   }
-  return misbehavesOn(todayKey, st.birth);
+  return false;
 }

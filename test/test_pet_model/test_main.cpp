@@ -457,6 +457,24 @@ static void test_onAppOpen_care_drops_on_sustained_neglect() {
   TEST_ASSERT_EQUAL_INT(-3, (int)st.care);
 }
 
+static void test_onAppOpen_no_tantrum_reroll_on_same_day_reopen() {
+  PetState st = hatched(20260706u);  // scold = day0
+  // Deterministic hash: scan forward for a day where the tantrum fires.
+  uint32_t misbehaveDay = 0;
+  for (int i = 1; i <= 30; ++i) {
+    const uint32_t d = dayPlus(i);
+    if (misbehavesOn(d, st.birth)) {
+      misbehaveDay = d;
+      break;
+    }
+  }
+  TEST_ASSERT_TRUE(misbehaveDay != 0);  // guaranteed to find one within 30 days
+  // First open of that day: this is the day's first open -> tantrum rolls.
+  TEST_ASSERT_TRUE(onAppOpen(st, misbehaveDay, 12 * 60));
+  // Same-day re-open: must not re-roll the tantrum.
+  TEST_ASSERT_FALSE(onAppOpen(st, misbehaveDay, 12 * 60));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_defaults_are_an_egg);
@@ -504,5 +522,6 @@ int main(int, char**) {
   RUN_TEST(test_onAppOpen_at_night_marks_disturbed);
   RUN_TEST(test_onAppOpen_care_rises_after_a_fully_cared_day);
   RUN_TEST(test_onAppOpen_care_drops_on_sustained_neglect);
+  RUN_TEST(test_onAppOpen_no_tantrum_reroll_on_same_day_reopen);
   return UNITY_END();
 }
