@@ -190,6 +190,7 @@ void PomodoroApp::flash() {
   if (flashTimer_ != nullptr) return;
   flashOv_ = lv_obj_create(lv_layer_top());
   lv_obj_remove_style_all(flashOv_);
+  lv_obj_clear_flag(flashOv_, LV_OBJ_FLAG_CLICKABLE);  // don't steal taps
   lv_obj_set_size(flashOv_, LV_PCT(100), LV_PCT(100));
   lv_obj_set_style_bg_color(flashOv_, lv_color_white(), 0);
   lv_obj_set_style_bg_opa(flashOv_, LV_OPA_COVER, 0);
