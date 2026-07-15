@@ -61,14 +61,14 @@ void PomodoroApp::buildUI(lv_obj_t* parent) {
   lv_obj_align(countdown_, LV_ALIGN_TOP_MID, 0, 132);
 
   lv_obj_t* btn = lv_btn_create(parent);
-  lv_obj_set_size(btn, 150, 44);
+  lv_obj_set_size(btn, 150, 36);
   lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, 186);
   btnLbl_ = lv_label_create(btn);
   lv_obj_center(btnLbl_);
   lv_obj_add_event_cb(btn, onStartStop, LV_EVENT_CLICKED, this);
 
-  buildStepperRow(parent, 238, "Trabalho", &workVal_, onWorkMinus, onWorkPlus);
-  buildStepperRow(parent, 264, "Pausa", &breakVal_, onBreakMinus, onBreakPlus);
+  buildStepperRow(parent, 232, "Trabalho", &workVal_, onWorkMinus, onWorkPlus);
+  buildStepperRow(parent, 261, "Pausa", &breakVal_, onBreakMinus, onBreakPlus);
 
   syncAll(millis());
   lastLblMs_ = millis();
