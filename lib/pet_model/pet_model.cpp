@@ -32,6 +32,40 @@ void recordNightInteraction(PetState& st, uint32_t todayKey, int mins) {
     st.nightint = dateKey(addDays(fromDateKey(todayKey), -1));  // pre-dawn
   }
 }
+
+// The 2nd-oldest of the four satisfaction dates. Because needs only degrade
+// during neglect, this is exactly the day the current "2+ Critical" streak
+// began (its date + kDaysToCritical). Sorting four values inline.
+uint32_t secondOldestSatisfied(const PetState& st) {
+  uint32_t v[4] = {st.fed, st.played, st.cleaned, st.rested};
+  for (int i = 1; i < 4; ++i) {
+    const uint32_t k = v[i];
+    int j = i - 1;
+    while (j >= 0 && v[j] > k) { v[j + 1] = v[j]; --j; }
+    v[j + 1] = k;
+  }
+  return v[1];
+}
+
+// Backdated Sick onset dateKey: the day the 2nd need crossed into Critical.
+uint32_t sickOnsetKey(const PetState& st) {
+  const uint32_t s2 = secondOldestSatisfied(st);
+  if (s2 == 0) return 0;
+  return dateKey(addDays(fromDateKey(s2), petcfg::kDaysToCritical));
+}
+
+// Advance rested to the most recent dawn that has passed, unless the night
+// before that dawn was disturbed. Being away (no night interactions) keeps
+// Energy Great.
+void applyDawnAward(PetState& st, uint32_t todayKey, int mins) {
+  if (todayKey == 0 || mins < 0) return;
+  const LocalDate today = fromDateKey(todayKey);
+  const LocalDate lastDawn = (mins >= petcfg::kDawnMin) ? today : addDays(today, -1);
+  const uint32_t nightStartKey = dateKey(addDays(lastDawn, -1));
+  if (st.nightint == nightStartKey) return;  // disturbed last night: no award
+  const uint32_t dawnKey = dateKey(lastDawn);
+  if (st.rested < dawnKey) st.rested = dawnKey;
+}
 }  // namespace
 
 PetState loadPet(ISettingsStore& store) {
@@ -184,4 +218,40 @@ const char* foodSprite(Food food) {
     case Food::Meal:  return "S:/art/pet/food_meal.bin";
     default:          return "S:/art/pet/food_treat.bin";
   }
+}
+
+Health healthOf(const PetState& st, uint32_t todayKey) {
+  if (criticalCount(st, todayKey) < 2) return Health::Healthy;
+  const uint32_t onset = sickOnsetKey(st);
+  if (onset == 0 || todayKey == 0) return Health::Sick;
+  int32_t sickDays = daysBetween(fromDateKey(onset), fromDateKey(todayKey));
+  if (sickDays < 0) sickDays = 0;
+  return (sickDays >= petcfg::kSickToIll) ? Health::CriticallyIll : Health::Sick;
+}
+
+const char* healthLabelPt(Health h) {
+  switch (h) {
+    case Health::Healthy: return "Saudável";
+    case Health::Sick:    return "Doente";
+    default:              return "Muito doente";
+  }
+}
+
+bool petTick(PetState& st, uint32_t todayKey, int mins) {
+  if (todayKey == 0 || !st.alive) return false;  // clock unknown / egg / dead
+  applyDawnAward(st, todayKey, mins);
+  if (criticalCount(st, todayKey) < 2) {  // healthy: clear any recorded onsets
+    st.sickday = 0;
+    st.illday = 0;
+    return false;
+  }
+  const uint32_t onset = sickOnsetKey(st);
+  st.sickday = onset;
+  int32_t sickDays =
+      (onset == 0) ? 0 : daysBetween(fromDateKey(onset), fromDateKey(todayKey));
+  if (sickDays < 0) sickDays = 0;
+  st.illday = (sickDays >= petcfg::kSickToIll)
+                  ? dateKey(addDays(fromDateKey(onset), petcfg::kSickToIll))
+                  : 0;
+  return false;  // death transition added in Task 6
 }

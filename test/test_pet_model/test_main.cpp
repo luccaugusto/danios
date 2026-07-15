@@ -281,6 +281,70 @@ static void test_food_strings() {
   TEST_ASSERT_EQUAL_STRING("S:/art/pet/food_treat.bin", foodSprite(Food::Treat));
 }
 
+static void test_dawn_award_when_away() {
+  PetState st = hatched(20260706u);  // rested = day 0
+  st.nightint = 0;                   // never disturbed
+  // Noon on day+3: last night (day+2 -> day+3) undisturbed -> rested = today.
+  petTick(st, dayPlus(3), 12 * 60);
+  TEST_ASSERT_EQUAL_UINT32(dayPlus(3), st.rested);
+  TEST_ASSERT_EQUAL_INT((int)NeedLevel::Great, (int)energyLevel(st, dayPlus(3)));
+}
+
+static void test_no_dawn_award_when_last_night_disturbed() {
+  PetState st = hatched(20260706u);  // rested = day 0
+  st.nightint = dayPlus(2);          // disturbed the night that began day+2
+  petTick(st, dayPlus(3), 12 * 60);  // noon day+3: that night precedes this dawn
+  TEST_ASSERT_EQUAL_UINT32(20260706u, st.rested);  // no advance
+}
+
+static void test_dawn_award_before_7am_uses_yesterday() {
+  PetState st = hatched(20260706u);  // rested = day 0
+  st.nightint = 0;
+  // 02:00 on day+3 is pre-dawn: the most recent dawn passed is day+2's.
+  petTick(st, dayPlus(3), 2 * 60);
+  TEST_ASSERT_EQUAL_UINT32(dayPlus(2), st.rested);
+}
+
+static void test_healthOf_labels() {
+  PetState st = hatched(20260706u);  // all four satisfied day 0
+  TEST_ASSERT_EQUAL_INT((int)Health::Healthy, (int)healthOf(st, dayPlus(2)));
+  TEST_ASSERT_EQUAL_INT((int)Health::Sick, (int)healthOf(st, dayPlus(3)));
+  TEST_ASSERT_EQUAL_INT((int)Health::CriticallyIll, (int)healthOf(st, dayPlus(6)));
+  // Pure label caps at CriticallyIll; the death transition lives in petTick.
+  TEST_ASSERT_EQUAL_INT((int)Health::CriticallyIll, (int)healthOf(st, dayPlus(9)));
+}
+
+static void test_petTick_writes_then_clears_sickday() {
+  PetState st = hatched(20260706u);
+  st.nightint = 0;  // let energy recover; the other 3 needs drive sickness
+  petTick(st, dayPlus(3), 12 * 60);
+  TEST_ASSERT_EQUAL_UINT32(dayPlus(3), st.sickday);  // backdated onset
+  TEST_ASSERT_EQUAL_UINT32(0u, st.illday);           // not ill yet
+  // Recover: satisfy the three stale needs today -> back under 2 Critical.
+  st.fed = st.played = st.cleaned = dayPlus(3);
+  petTick(st, dayPlus(3), 12 * 60);
+  TEST_ASSERT_EQUAL_UINT32(0u, st.sickday);          // healthy again
+  TEST_ASSERT_EQUAL_UINT32(0u, st.illday);
+}
+
+static void test_petTick_backdates_illness_on_clock_jump() {
+  PetState st = hatched(20260706u);
+  st.nightint = 0;
+  // Device off; one recompute lands on day+7. Energy recovers (away), but
+  // hunger/happiness/hygiene have been Critical since day+3.
+  const bool died = petTick(st, dayPlus(7), 12 * 60);
+  TEST_ASSERT_FALSE(died);  // death arrives at day+9 (Task 6)
+  TEST_ASSERT_EQUAL_UINT32(dayPlus(3), st.sickday);  // onset backdated, not "day+7"
+  TEST_ASSERT_EQUAL_UINT32(dayPlus(6), st.illday);   // onset + 3
+  TEST_ASSERT_EQUAL_INT((int)Health::CriticallyIll, (int)healthOf(st, dayPlus(7)));
+}
+
+static void test_health_labels_pt() {
+  TEST_ASSERT_EQUAL_STRING("Saudável", healthLabelPt(Health::Healthy));
+  TEST_ASSERT_EQUAL_STRING("Doente", healthLabelPt(Health::Sick));
+  TEST_ASSERT_EQUAL_STRING("Muito doente", healthLabelPt(Health::CriticallyIll));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_defaults_are_an_egg);
@@ -309,5 +373,12 @@ int main(int, char**) {
   RUN_TEST(test_early_morning_interaction_marks_previous_night);
   RUN_TEST(test_scold_reward_and_penalty_clamp);
   RUN_TEST(test_food_strings);
+  RUN_TEST(test_dawn_award_when_away);
+  RUN_TEST(test_no_dawn_award_when_last_night_disturbed);
+  RUN_TEST(test_dawn_award_before_7am_uses_yesterday);
+  RUN_TEST(test_healthOf_labels);
+  RUN_TEST(test_petTick_writes_then_clears_sickday);
+  RUN_TEST(test_petTick_backdates_illness_on_clock_jump);
+  RUN_TEST(test_health_labels_pt);
   return UNITY_END();
 }

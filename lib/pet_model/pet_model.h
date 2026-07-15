@@ -111,6 +111,20 @@ bool clean(PetState& st, uint32_t todayKey, int minutesSinceMidnight);
 void scoldReward(PetState& st);   // scolded in time  -> disc + 1
 void scoldPenalty(PetState& st);  // window missed    -> disc - 1
 
+// Derived health (spec: 0-1 Critical Healthy, 2+ Sick, Sick 3+ days
+// Critically Ill). Never returns a "Dead" label — death is an alive-state
+// transition handled by petTick.
+enum class Health : uint8_t { Healthy, Sick, CriticallyIll };
+Health healthOf(const PetState& st, uint32_t todayKey);
+const char* healthLabelPt(Health h);
+
+// The always-safe recompute: apply the energy dawn award, then derive and
+// store the Sick/Critically-Ill onsets (backdated from the need dates, so a
+// large clock jump lands on the correct stage in one call). Call on boot, on
+// day change (main loop), and before every interaction. Idempotent.
+// Returns true only when the pet JUST died in this call (added in Task 6).
+bool petTick(PetState& st, uint32_t todayKey, int minutesSinceMidnight);
+
 const char* foodLabelPt(Food food);
 const char* foodSprite(Food food);
 
