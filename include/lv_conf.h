@@ -56,6 +56,7 @@
  * FontAwesome symbol glyphs LVGL's built-in fonts carry. See
  * src/assets/fonts/montserrat_pt_14.c for the generation command. */
 #define LV_FONT_MONTSERRAT_14 1
+#define LV_FONT_MONTSERRAT_48 1  /* pomodoro countdown; ASCII digits only */
 #define LV_FONT_MONTSERRAT_20 0
 #define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(montserrat_pt_14)
 #define LV_FONT_DEFAULT &montserrat_pt_14
