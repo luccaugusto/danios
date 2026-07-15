@@ -39,7 +39,6 @@ static BluetoothAudioService btAudio(settings);
 // Grid order = registration order (roadmap §4.5); ids pinned by App::id() docs.
 // Names + icons are edited in src/apps/app_catalog.h, never here.
 static WeatherApp weatherApp;
-static StubApp musicStub("music", catalog::kMusic);
 static CalculatorApp calculatorApp;
 static OracleApp oracleApp;
 static StubApp petStub("pet", catalog::kPet);
@@ -96,8 +95,8 @@ static void showSdMissingError() {
   static const char* kBtns[] = {"OK", ""};
   lv_obj_t* m = lv_msgbox_create(
       nullptr, "Sem cartão de memória",
-      "Não encontrei o cartão microSD, então Clima, Música e\n"
-      "Oráculo estão tirando uma soneca.\n\n"
+      "Não encontrei o cartão microSD, então Clima e Oráculo\n"
+      "estão tirando uma soneca.\n\n"
       "Seu bichinho está bem - ele mora dentro de mim, não no cartão!\n\n"
       "Insira o cartão e reinicie para trazer tudo de volta.",
       kBtns, false);
@@ -126,14 +125,13 @@ void setup() {
 
   weatherApp.setDeps(settings, wifiService, timeService, storage);
   launcher.registerApp(&weatherApp);
-  launcher.registerApp(&musicStub);
   launcher.registerApp(&calculatorApp);
   oracleApp.setDeps(storage, timeService);
   launcher.registerApp(&oracleApp);
   launcher.registerApp(&petStub);
   settingsApp.setDeps(settings, displayService, storage, radioManager,
                       wifiService, timeService, btAudio);
-  launcher.registerApp(&settingsApp);  // sixth grid icon
+  launcher.registerApp(&settingsApp);  // last grid icon
   launcher.setRadioRequest([](RadioMode m) { return radioManager.request(m); });
   radioManager.setBluetoothService(&btAudio);
 
@@ -142,8 +140,25 @@ void setup() {
     // NVS, placeholder art); Calculator and Settings never depend on the
     // card.
     launcher.setAppEnabled("weather", false);
-    launcher.setAppEnabled("music", false);
     launcher.setAppEnabled("oracle", false);
+  }
+
+  // Boot splash: the hand-drawn logo (240x288 on the 240x320 screen) shows on
+  // every boot for at least kSplashMinMs; the WiFi bring-up below happens
+  // behind it, with the "Conectando" label in the 32 px strip under the logo.
+  // Screen bg matches the logo's baked-in purple so the strip blends in.
+  // Missing SD (or file) -> logo stays nullptr and the label centers itself,
+  // the pre-logo behavior.
+  static constexpr char kBootLogo[] = "S:/art/boot-logo.bin";
+  static constexpr uint32_t kSplashMinMs = 2000;
+  const uint32_t splashStart = millis();
+  lv_obj_t* logo = nullptr;
+  if (lvglFsExists(kBootLogo)) {
+    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x820EEF), 0);
+    logo = lv_img_create(lv_scr_act());
+    lv_img_set_src(logo, kBootLogo);
+    lv_obj_align(logo, LV_ALIGN_TOP_MID, 0, 0);
+    lv_refr_now(nullptr);
   }
 
   // Boot flow step 4 (spec §3.4): if a network is saved, bring WiFi up briefly
@@ -153,7 +168,12 @@ void setup() {
   if (wifiService.hasCredentials()) {
     lv_obj_t* splash = lv_label_create(lv_scr_act());
     lv_label_set_text(splash, "Conectando" LV_SYMBOL_WIFI);
-    lv_obj_center(splash);
+    if (logo) {
+      lv_obj_set_style_text_color(splash, lv_color_white(), 0);
+      lv_obj_align(splash, LV_ALIGN_BOTTOM_MID, 0, -6);
+    } else {
+      lv_obj_center(splash);
+    }
     lv_refr_now(nullptr);
 
     if (radioManager.request(RadioMode::WiFi) && wifiService.connect(8000)) {
@@ -162,6 +182,11 @@ void setup() {
     }
     radioManager.request(RadioMode::None);
     lv_obj_del(splash);
+  }
+
+  if (logo) {
+    while (millis() - splashStart < kSplashMinMs) delay(10);
+    lv_obj_del(logo);  // free the widget before the launcher screen builds
   }
 
   launcher.show();

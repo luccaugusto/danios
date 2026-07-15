@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!--
+    Crystal ball (oráculo), centered in a 64x64 viewBox, transparent
+    background. Geometry: the ball is a circle center (32,25) r=18 with two
+    sparkle glints cut via fill-rule=evenodd — a big one center (25.5,18.5)
+    r=4 and a small one center (31.5,12) r=2, real transparency, not colored
+    insets. The stand is a trapezoid (top 22..42 at y=45, bottom 17..47 at
+    y=56), leaving a 2 px gap under the ball so the two shapes stay tellable
+    apart at 64 px. No strokes, no gradients, no text.
+
+    Fill is the settings gear's #5A7DA0 hue-rotated to violet (#7D5AA0) —
+    same component values permuted, so same saturation/lightness and the icon
+    set stays one family (settings=blue-grey, calc=green, weather=teal,
+    oracle=violet). See assets/icons/svg_to_lvgl_bin.py for the
+    SVG -> LVGL .bin conversion pipeline.
+  -->
+  <path
+    fill="#7D5AA0"
+    fill-rule="evenodd"
+    d="M 50,25 A 18 18 0 1 0 14,25 A 18 18 0 1 0 50,25 Z
+       M 29.5,18.5 A 4 4 0 1 0 21.5,18.5 A 4 4 0 1 0 29.5,18.5 Z
+       M 33.5,12 A 2 2 0 1 0 29.5,12 A 2 2 0 1 0 33.5,12 Z
+       M 22,45 L 42,45 L 47,56 L 17,56 Z" />
+</svg>

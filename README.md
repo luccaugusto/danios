@@ -81,6 +81,7 @@ pio device list       # should show /dev/ttyUSB0 once the board is plugged in
 ```
 /music/*.mp3           ← songs
 /oracle/wisdom.txt     ← one wisdom entry per line
+/art/boot-logo.bin     ← boot splash logo (240x288)
 /art/weather/          ← outfits, condition overlays, backgrounds
 /art/icons/            ← 5 app icons + gear
 /art/oracle/           ← oracle frame
@@ -157,4 +158,9 @@ Design is approved and hardware is in hand. Pick up at either:
     - [x] `bg_rain.bin`
     - [x] `bg_snow.bin`
     - [x] `bg_storm.bin`
-- [ ] make a boot screen like the wifi connecting screen we have today but that shows always, wifi connection happens at this step
+- [x] make a boot screen like the wifi connecting screen we have today but that
+      shows always, wifi connection happens at this step — `assets/art/boot-logo.png`
+      converted to `sd/art/boot-logo.bin`, shown ≥2 s in `main.cpp` with the
+      "Conectando" label in the strip below it while WiFi comes up
+- [x] make a cristal ball svg for the oracle app — `assets/icons/oracle.svg`,
+      converted to `sd/art/icons/oracle.bin` and wired in `app_catalog.h`
