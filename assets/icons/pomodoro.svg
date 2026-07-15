@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!--
+    Tomato (pomodoro), centered in a 64x64 viewBox, transparent background.
+    Geometry: the fruit is a circle center (32,37) r=19 with one sparkle
+    glint cut via fill-rule=evenodd — circle center (25,30) r=4, real
+    transparency like the oracle ball's glints. The calyx is a separate
+    3-spike star path (top spike (32,6), side spikes (46,17)/(18,17),
+    bottom vertex (32,25) buried in the fruit) — a second <path> rather
+    than a subpath so the overlap UNIONS with the fruit instead of being
+    evenodd-cut; same fill, so no visible seam, and the spike tips clear
+    the silhouette so the calyx stays tellable at 64 px. No strokes, no
+    gradients, no text.
+
+    Fill is the icon family's red permutation #A05A5A — same muted component
+    values as the rest of the set (settings=#5A7DA0 blue-grey, calc=#6FA05A
+    green, weather=#5AA0A0 teal, oracle=#7D5AA0 violet), so same
+    saturation/lightness and the set stays one family. See
+    assets/icons/svg_to_lvgl_bin.py for the SVG -> LVGL .bin pipeline.
+  -->
+  <path
+    fill="#A05A5A"
+    fill-rule="evenodd"
+    d="M 51,37 A 19 19 0 1 0 13,37 A 19 19 0 1 0 51,37 Z
+       M 29,30 A 4 4 0 1 0 21,30 A 4 4 0 1 0 29,30 Z" />
+  <path
+    fill="#A05A5A"
+    d="M 32,6 L 34.5,13 L 46,17 L 36.5,21 L 32,25 L 27.5,21 L 18,17 L 29.5,13 Z" />
+</svg>

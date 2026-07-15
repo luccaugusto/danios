@@ -23,6 +23,6 @@ inline constexpr AppInfo kMusic{"Música", nullptr};
 inline constexpr AppInfo kCalc{"Calculadora", "S:/art/icons/calc.bin"};
 inline constexpr AppInfo kOracle{"Oráculo", "S:/art/icons/oracle.bin"};
 inline constexpr AppInfo kPet{"Bichinho", nullptr};
-inline constexpr AppInfo kPomodoro{"Pomodoro", nullptr};
+inline constexpr AppInfo kPomodoro{"Pomodoro", "S:/art/icons/pomodoro.bin"};
 inline constexpr AppInfo kSettings{"Configurações", "S:/art/icons/settings.bin"};
 }  // namespace catalog
