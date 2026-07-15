@@ -164,3 +164,25 @@ Design is approved and hardware is in hand. Pick up at either:
       "Conectando" label in the strip below it while WiFi comes up
 - [x] make a cristal ball svg for the oracle app — `assets/icons/oracle.svg`,
       converted to `sd/art/icons/oracle.bin` and wired in `app_catalog.h`
+- [ ] draw the images for the pet app — 10 sprites, `.bin` under `S:/art/pet/`
+      (paths from `lib/pet_model/pet_model.cpp`, render sizes from
+      `src/apps/pet/PetApp.cpp`). Same workflow as weather:
+      `assets/icons/svg_to_lvgl_bin.py <png> sd/art/pet/<name>.bin --size WxH`.
+      Every slot shows a colored placeholder box until its file exists — the
+      app is fully usable without art.
+  - Growth-stage sprites (rendered 104×104 on the alive screen):
+    - [ ] `egg.bin` — also the egg screen, rendered 120×120 there
+    - [ ] `baby.bin` — days 0–2
+    - [ ] `child.bin` — days 3–9
+    - [ ] `teen.bin` — days 10–20
+    - [ ] `adult.bin` — day 21+
+  - Mess (rendered 30×30, up to 3 stacked in a row):
+    - [ ] `mess.bin`
+  - Food (reserved paths; the tray currently uses text buttons, so these are
+    for a future tray upgrade):
+    - [ ] `food_snack.bin`
+    - [ ] `food_meal.bin`
+    - [ ] `food_treat.bin`
+  - Launcher icon (out of the A5 plan's scope; needs wiring in
+    `app_catalog.h` like oracle's):
+    - [ ] `sd/art/icons/pet.bin`
