@@ -9,6 +9,7 @@
 #include "apps/calculator/CalculatorApp.h"
 #include "apps/oracle/OracleApp.h"
 #include "apps/pet/PetApp.h"
+#include "apps/pomodoro/PomodoroApp.h"
 #include "apps/settings/SettingsApp.h"
 #include "apps/weather/WeatherApp.h"
 #include "apps/weather/WeatherFetch.h"
@@ -45,6 +46,7 @@ static WeatherApp weatherApp;
 static CalculatorApp calculatorApp;
 static OracleApp oracleApp;
 static PetApp petApp;
+static PomodoroApp pomodoroApp;
 static SettingsApp settingsApp;
 
 // --- Screen sleep (spec 6.4): backlight off after disp.sleep_s of inactivity;
@@ -150,6 +152,8 @@ void setup() {
   launcher.registerApp(&oracleApp);
   petApp.setDeps(settings, timeService, storage);
   launcher.registerApp(&petApp);
+  pomodoroApp.setDeps(settings, storage);
+  launcher.registerApp(&pomodoroApp);
   settingsApp.setDeps(settings, displayService, storage, radioManager,
                       wifiService, timeService, btAudio);
   launcher.registerApp(&settingsApp);  // last grid icon
@@ -213,6 +217,7 @@ void setup() {
   launcher.show();
   if (!sdOk) showSdMissingError();  // modal on top of the launcher, dismissable
   updatePetBadge();  // spec: recompute the Pet badge on boot
+  launcher.setBadge("pomodoro", pomodoroApp.badgeOn(millis()));  // Idle on boot
   Serial.println("danios: launcher up");
 }
 
@@ -234,6 +239,7 @@ void loop() {
       default:                 statusBar.setRadio(RadioMode::None); break;
     }
     updatePetBadge();  // keep the Pet badge live (clears after care, sets on neglect)
+    launcher.setBadge("pomodoro", pomodoroApp.badgeOn(millis()));
   }
 
   delay(5);
