@@ -24,6 +24,8 @@
 #include "services/TimeService.h"
 #include "services/TouchService.h"    // F1 API
 #include "services/WiFiService.h"
+#include <date_utils.h>
+#include <pet_model.h>
 
 static DisplayService displayService;
 static TouchService touchService;
@@ -104,6 +106,23 @@ static void showSdMissingError() {
   lv_obj_set_width(m, 230);  // near-full-width on the 240 px portrait screen
   lv_obj_center(m);
   lv_obj_add_event_cb(m, sdErrorMsgboxCb, LV_EVENT_VALUE_CHANGED, nullptr);
+}
+
+// Pet launcher badge (spec §"Launcher badge"): red dot whenever any need is
+// Critical. Called on boot and ~1 Hz from loop(). The badge only reads state
+// (cheap NVS reads); the persisting petTick (energy dawn award / death) runs
+// at most once per day, gated on the local date changing.
+static uint32_t g_lastPetDay = 0xFFFFFFFFu;
+
+static void updatePetBadge() {
+  const uint32_t today = timeService.isTimeKnown() ? dateKey(timeService.today()) : 0u;
+  PetState pet = loadPet(settings);
+  if (pet.alive && today != 0 && today != g_lastPetDay) {
+    petTick(pet, today, timeService.minutesSinceMidnight());
+    savePet(settings, pet);  // persist dawn award / death once per new day
+  }
+  g_lastPetDay = today;
+  launcher.setBadge("pet", needsAttention(pet, today));
 }
 
 void setup() {
@@ -193,6 +212,7 @@ void setup() {
 
   launcher.show();
   if (!sdOk) showSdMissingError();  // modal on top of the launcher, dismissable
+  updatePetBadge();  // spec: recompute the Pet badge on boot
   Serial.println("danios: launcher up");
 }
 
@@ -213,6 +233,7 @@ void loop() {
       case RadioState::BtOn:   statusBar.setRadio(RadioMode::Bluetooth); break;
       default:                 statusBar.setRadio(RadioMode::None); break;
     }
+    updatePetBadge();  // keep the Pet badge live (clears after care, sets on neglect)
   }
 
   delay(5);
