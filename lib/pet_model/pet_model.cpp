@@ -2,6 +2,18 @@
 
 #include <date_utils.h>
 
+namespace {
+// The spec's day-count -> level table, applied to any need's dateKey.
+NeedLevel levelFromKey(uint32_t lastKey, uint32_t todayKey) {
+  if (lastKey == 0 || todayKey == 0) return NeedLevel::Great;  // unknown: benign
+  int32_t d = daysBetween(fromDateKey(lastKey), fromDateKey(todayKey));
+  if (d <= 0) return NeedLevel::Great;   // same day or clock went backwards
+  if (d == 1) return NeedLevel::Okay;
+  if (d == 2) return NeedLevel::Neglected;
+  return NeedLevel::Critical;            // 3+ days
+}
+}  // namespace
+
 PetState loadPet(ISettingsStore& store) {
   PetState st;
   st.name = store.getString("pet.name", "");
@@ -55,4 +67,53 @@ Screen currentScreen(const PetState& st) {
   if (st.birth == 0) return Screen::Egg;
   if (!st.alive) return Screen::Memorial;
   return Screen::Alive;
+}
+
+NeedLevel hungerLevel(const PetState& st, uint32_t t) { return levelFromKey(st.fed, t); }
+NeedLevel happyLevel(const PetState& st, uint32_t t) { return levelFromKey(st.played, t); }
+NeedLevel hygieneLevel(const PetState& st, uint32_t t) { return levelFromKey(st.cleaned, t); }
+NeedLevel energyLevel(const PetState& st, uint32_t t) { return levelFromKey(st.rested, t); }
+
+int criticalCount(const PetState& st, uint32_t todayKey) {
+  if (st.birth == 0 || todayKey == 0) return 0;  // egg / unknown clock: no needs
+  int n = 0;
+  if (hungerLevel(st, todayKey) == NeedLevel::Critical) ++n;
+  if (happyLevel(st, todayKey) == NeedLevel::Critical) ++n;
+  if (hygieneLevel(st, todayKey) == NeedLevel::Critical) ++n;
+  if (energyLevel(st, todayKey) == NeedLevel::Critical) ++n;
+  return n;
+}
+
+bool needsAttention(const PetState& st, uint32_t todayKey) {
+  return criticalCount(st, todayKey) >= 1;
+}
+
+Stage growthStage(const PetState& st, uint32_t todayKey) {
+  if (st.birth == 0) return Stage::Egg;
+  int32_t days =
+      (todayKey == 0) ? 0 : daysBetween(fromDateKey(st.birth), fromDateKey(todayKey));
+  if (days < 0) days = 0;
+  if (days < petcfg::kChildFromDay) return Stage::Baby;
+  if (days < petcfg::kTeenFromDay) return Stage::Child;
+  if (days < petcfg::kAdultFromDay) return Stage::Teen;
+  return Stage::Adult;
+}
+
+const char* needLevelLabelPt(NeedLevel level) {
+  switch (level) {
+    case NeedLevel::Great:     return "Ótimo";
+    case NeedLevel::Okay:      return "Bem";
+    case NeedLevel::Neglected: return "Carente";
+    default:                   return "Crítico";
+  }
+}
+
+const char* stageSprite(Stage stage) {
+  switch (stage) {
+    case Stage::Egg:   return "S:/art/pet/egg.bin";
+    case Stage::Baby:  return "S:/art/pet/baby.bin";
+    case Stage::Child: return "S:/art/pet/child.bin";
+    case Stage::Teen:  return "S:/art/pet/teen.bin";
+    default:           return "S:/art/pet/adult.bin";
+  }
 }

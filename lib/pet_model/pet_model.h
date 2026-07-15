@@ -37,6 +37,14 @@ enum class Screen : uint8_t { Egg, Alive, Memorial };
 // Happiness (the "different deltas, no downsides" of the spec at day scale).
 enum class Food : uint8_t { Snack, Meal, Treat };
 
+// A single need's care level, driven by days since last satisfied (spec
+// table: 0 Great, 1 Okay, 2 Neglected, 3+ Critical).
+enum class NeedLevel : uint8_t { Great, Okay, Neglected, Critical };
+
+// Growth stage by total days alive (Egg is the pre-hatch state, not a
+// days-alive stage). Thresholds in petcfg (Baby 0-2, Child 3-9, Teen 10-20).
+enum class Stage : uint8_t { Egg, Baby, Child, Teen, Adult };
+
 // The full persisted state, mirrored to/from the pinned NVS keys (roadmap
 // §4.2). dateKey == 0 means "never/unknown" throughout (date_utils sentinel).
 struct PetState {
@@ -68,3 +76,24 @@ bool hatch(PetState& st, const std::string& name, uint32_t todayKey);
 void rebirth(PetState& st);
 // Egg (birth==0) / Memorial (dead, birth!=0) / Alive.
 Screen currentScreen(const PetState& st);
+
+// --- Derived need levels (pure; todayKey==0 or backwards clock => Great) ----
+NeedLevel hungerLevel(const PetState& st, uint32_t todayKey);
+NeedLevel happyLevel(const PetState& st, uint32_t todayKey);
+NeedLevel hygieneLevel(const PetState& st, uint32_t todayKey);
+NeedLevel energyLevel(const PetState& st, uint32_t todayKey);
+
+// How many of the four needs are Critical right now. Always 0 for an egg
+// (birth==0) or an unknown clock (todayKey==0). A dead pet keeps its stale
+// dates, so this stays >=2 for it (keeps the badge on -> memorial).
+int criticalCount(const PetState& st, uint32_t todayKey);
+
+// Launcher badge rule (spec): red dot whenever ANY need is Critical.
+bool needsAttention(const PetState& st, uint32_t todayKey);
+
+// Growth stage from total days alive.
+Stage growthStage(const PetState& st, uint32_t todayKey);
+
+// UI strings / art paths (Portuguese device UI; art under S:/art/pet/).
+const char* needLevelLabelPt(NeedLevel level);
+const char* stageSprite(Stage stage);
