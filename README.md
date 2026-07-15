@@ -186,3 +186,4 @@ Design is approved and hardware is in hand. Pick up at either:
   - Launcher icon (out of the A5 plan's scope; needs wiring in
     `app_catalog.h` like oracle's):
     - [ ] `sd/art/icons/pet.bin`
+- [ ] rename pet app from bichinho to Pet
