@@ -8,6 +8,7 @@
 #include "apps/app_catalog.h"
 #include "apps/calculator/CalculatorApp.h"
 #include "apps/oracle/OracleApp.h"
+#include "apps/pet/PetApp.h"
 #include "apps/settings/SettingsApp.h"
 #include "apps/weather/WeatherApp.h"
 #include "apps/weather/WeatherFetch.h"
@@ -41,7 +42,7 @@ static BluetoothAudioService btAudio(settings);
 static WeatherApp weatherApp;
 static CalculatorApp calculatorApp;
 static OracleApp oracleApp;
-static StubApp petStub("pet", catalog::kPet);
+static PetApp petApp;
 static SettingsApp settingsApp;
 
 // --- Screen sleep (spec 6.4): backlight off after disp.sleep_s of inactivity;
@@ -128,7 +129,8 @@ void setup() {
   launcher.registerApp(&calculatorApp);
   oracleApp.setDeps(storage, timeService);
   launcher.registerApp(&oracleApp);
-  launcher.registerApp(&petStub);
+  petApp.setDeps(settings, timeService, storage);
+  launcher.registerApp(&petApp);
   settingsApp.setDeps(settings, displayService, storage, radioManager,
                       wifiService, timeService, btAudio);
   launcher.registerApp(&settingsApp);  // last grid icon
