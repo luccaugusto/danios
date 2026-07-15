@@ -388,6 +388,75 @@ static void test_rebirth_after_death_clears_badge() {
   TEST_ASSERT_FALSE(needsAttention(st, dayPlus(9)));  // fresh egg: badge off
 }
 
+static void test_misbehaves_is_deterministic_and_guarded() {
+  const bool a = misbehavesOn(20260710u, 20260706u);
+  const bool b = misbehavesOn(20260710u, 20260706u);
+  TEST_ASSERT_EQUAL_INT((int)a, (int)b);         // pure function of its inputs
+  TEST_ASSERT_FALSE(misbehavesOn(0u, 20260706u)); // unknown day -> never
+  TEST_ASSERT_FALSE(misbehavesOn(20260710u, 0u)); // egg -> never
+}
+
+static void test_misbehaves_varies_across_days() {
+  int hits = 0;
+  LocalDate d{2026, 7, 6};
+  for (int i = 0; i < 100; ++i) {
+    if (misbehavesOn(dateKey(d), 20260706u)) ++hits;
+    d = addDays(d, 1);
+  }
+  // Loose band: only guards against a broken hash stuck at all-yes / all-no.
+  TEST_ASSERT_TRUE(hits > 5 && hits < 70);
+}
+
+static void test_onAppOpen_spawns_one_mess_per_day_capped() {
+  PetState st = hatched(20260706u);  // scold = day0, mess = 0
+  onAppOpen(st, dayPlus(1), 12 * 60);
+  TEST_ASSERT_EQUAL_INT(1, (int)st.mess);            // one elapsed day -> one mess
+  TEST_ASSERT_EQUAL_UINT32(dayPlus(1), st.scold);    // processing marker advanced
+  st.scold = dayPlus(1);
+  onAppOpen(st, dayPlus(20), 12 * 60);               // huge jump
+  TEST_ASSERT_EQUAL_INT(petcfg::kMessCap, (int)st.mess);  // capped at 3
+}
+
+static void test_onAppOpen_same_day_reopen_is_idempotent() {
+  PetState st = hatched(20260706u);
+  onAppOpen(st, dayPlus(1), 12 * 60);   // mess = 1, scold = day+1
+  onAppOpen(st, dayPlus(1), 12 * 60);   // same day: no new mess, no re-scoring
+  TEST_ASSERT_EQUAL_INT(1, (int)st.mess);
+}
+
+static void test_onAppOpen_noop_when_dead_or_unknown_clock() {
+  PetState dead = hatched(20260706u);
+  dead.alive = false;
+  TEST_ASSERT_FALSE(onAppOpen(dead, dayPlus(3), 12 * 60));  // dead -> nothing
+  PetState st = hatched(20260706u);
+  st.mess = 0;
+  onAppOpen(st, 0u, 12 * 60);                 // unknown clock -> nothing
+  TEST_ASSERT_EQUAL_INT(0, (int)st.mess);
+}
+
+static void test_onAppOpen_at_night_marks_disturbed() {
+  PetState st = hatched(20260706u);
+  st.nightint = 0;
+  onAppOpen(st, dayPlus(1), 22 * 60);         // opened at 22:00 -> disturbed
+  TEST_ASSERT_EQUAL_UINT32(dayPlus(1), st.nightint);
+}
+
+static void test_onAppOpen_care_rises_after_a_fully_cared_day() {
+  PetState st = hatched(20260706u);  // all four = day0, scold = day0, care = 0
+  onAppOpen(st, dayPlus(1), 12 * 60);         // scores day0: all Great -> +1
+  TEST_ASSERT_EQUAL_INT(1, (int)st.care);
+}
+
+static void test_onAppOpen_care_drops_on_sustained_neglect() {
+  PetState st = hatched(20260706u);
+  st.fed = st.played = st.cleaned = st.rested = 20260706u;  // last cared day0
+  st.scold = dayPlus(2);   // pretend already processed through day+2
+  st.care = 0;
+  // Open day+6: score days [day+2, day+6) = day+2 (0), day+3/+4/+5 (-1 each).
+  onAppOpen(st, dayPlus(6), 12 * 60);
+  TEST_ASSERT_EQUAL_INT(-3, (int)st.care);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_defaults_are_an_egg);
@@ -427,5 +496,13 @@ int main(int, char**) {
   RUN_TEST(test_dead_pet_is_frozen);
   RUN_TEST(test_recovery_just_before_death);
   RUN_TEST(test_rebirth_after_death_clears_badge);
+  RUN_TEST(test_misbehaves_is_deterministic_and_guarded);
+  RUN_TEST(test_misbehaves_varies_across_days);
+  RUN_TEST(test_onAppOpen_spawns_one_mess_per_day_capped);
+  RUN_TEST(test_onAppOpen_same_day_reopen_is_idempotent);
+  RUN_TEST(test_onAppOpen_noop_when_dead_or_unknown_clock);
+  RUN_TEST(test_onAppOpen_at_night_marks_disturbed);
+  RUN_TEST(test_onAppOpen_care_rises_after_a_fully_cared_day);
+  RUN_TEST(test_onAppOpen_care_drops_on_sustained_neglect);
   return UNITY_END();
 }

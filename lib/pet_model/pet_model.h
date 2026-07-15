@@ -125,6 +125,19 @@ const char* healthLabelPt(Health h);
 // Returns true only when the pet JUST died in this call (added in Task 6).
 bool petTick(PetState& st, uint32_t todayKey, int minutesSinceMidnight);
 
+// --- Daily-open ritual ------------------------------------------------------
+// Deterministic misbehavior roll (date-seeded, ~kMisbehavePct% of days; same
+// determinism family as the Oracle picker). day/birth == 0 -> never.
+bool misbehavesOn(uint32_t dayKey, uint32_t birthKey);
+
+// Once-per-app-entry ritual (call AFTER petTick). Records the night marker,
+// and on the FIRST open of a new day: spawns one mess per elapsed day (stacking
+// to kMessCap), scores the hidden care metric over the completed days, and
+// advances the processing marker (pet.scold) to today. Returns whether the pet
+// misbehaves this visit -> UI shows the Scold button. No-op (false) for an egg,
+// a dead pet, or an unknown clock.
+bool onAppOpen(PetState& st, uint32_t todayKey, int minutesSinceMidnight);
+
 const char* foodLabelPt(Food food);
 const char* foodSprite(Food food);
 

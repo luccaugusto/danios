@@ -66,6 +66,49 @@ void applyDawnAward(PetState& st, uint32_t todayKey, int mins) {
   const uint32_t dawnKey = dateKey(lastDawn);
   if (st.rested < dawnKey) st.rested = dawnKey;
 }
+
+int clampCare(int v) {
+  if (v > petcfg::kCareMax) return petcfg::kCareMax;
+  if (v < petcfg::kCareMin) return petcfg::kCareMin;
+  return v;
+}
+
+// +1 if all four needs were satisfied exactly on dayKey; -1 if 2+ were
+// Critical on dayKey; 0 otherwise. Reconstructed from the current need dates
+// (see the care-score note in the plan) — coarse, but deterministic.
+int careDeltaForDay(const PetState& st, uint32_t dayKey) {
+  if (dayKey == 0) return 0;
+  const uint32_t needs[4] = {st.fed, st.played, st.cleaned, st.rested};
+  bool allGreat = true;
+  int crit = 0;
+  for (uint32_t k : needs) {
+    if (k != dayKey) allGreat = false;
+    if (k == 0) { ++crit; continue; }  // never satisfied counts as Critical
+    if (daysBetween(fromDateKey(k), fromDateKey(dayKey)) >= petcfg::kDaysToCritical) {
+      ++crit;
+    }
+  }
+  if (allGreat) return 1;
+  if (crit >= 2) return -1;
+  return 0;
+}
+
+// Accumulate care over the completed days [lastKey, todayKey). Bounded so a
+// pathological multi-year jump can't loop unboundedly.
+int16_t scoreCareDays(int startCare, const PetState& st, uint32_t lastKey,
+                      uint32_t todayKey) {
+  if (lastKey == 0 || todayKey == 0) return static_cast<int16_t>(clampCare(startCare));
+  int32_t span = daysBetween(fromDateKey(lastKey), fromDateKey(todayKey));
+  if (span < 0) span = 0;
+  if (span > petcfg::kCareCatchupCap) span = petcfg::kCareCatchupCap;
+  int score = startCare;
+  LocalDate d = fromDateKey(lastKey);
+  for (int32_t i = 0; i < span; ++i) {  // scores lastKey .. todayKey-1
+    score += careDeltaForDay(st, dateKey(d));
+    d = addDays(d, 1);
+  }
+  return static_cast<int16_t>(clampCare(score));
+}
 }  // namespace
 
 PetState loadPet(ISettingsStore& store) {
@@ -259,4 +302,29 @@ bool petTick(PetState& st, uint32_t todayKey, int mins) {
     return true;       // just died -> UI shows the memorial screen
   }
   return false;
+}
+
+bool misbehavesOn(uint32_t dayKey, uint32_t birthKey) {
+  if (dayKey == 0 || birthKey == 0) return false;
+  uint32_t h = dayKey * 2654435761u + birthKey * 40503u;  // date-seeded
+  h ^= h >> 13;
+  h *= 0x85ebca6bu;
+  h ^= h >> 16;
+  return (h % 100u) < static_cast<uint32_t>(petcfg::kMisbehavePct);
+}
+
+bool onAppOpen(PetState& st, uint32_t todayKey, int mins) {
+  if (todayKey == 0 || !st.alive) return false;
+  recordNightInteraction(st, todayKey, mins);  // opening at night disturbs the pet
+  if (st.scold != todayKey) {                   // first open of a new day
+    const uint32_t last = (st.scold != 0) ? st.scold : st.birth;
+    int32_t elapsed = daysBetween(fromDateKey(last), fromDateKey(todayKey));
+    if (elapsed < 0) elapsed = 0;
+    int newMess = static_cast<int>(st.mess) + elapsed;  // ~one mess per elapsed day
+    if (newMess > petcfg::kMessCap) newMess = petcfg::kMessCap;
+    st.mess = static_cast<uint8_t>(newMess);
+    st.care = scoreCareDays(st.care, st, last, todayKey);
+    st.scold = todayKey;
+  }
+  return misbehavesOn(todayKey, st.birth);
 }
