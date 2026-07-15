@@ -17,3 +17,6 @@ LocalDate fromDateKey(uint32_t key);  // inverse; 0 -> {0,0,0}
 
 // b - a in civil days (negative if b is before a).
 int32_t daysBetween(const LocalDate& a, const LocalDate& b);
+
+// d + days (days may be negative). {0,0,0} passes through unchanged.
+LocalDate addDays(const LocalDate& d, int32_t days);

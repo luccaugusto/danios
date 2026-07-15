@@ -53,6 +53,35 @@ void test_days_between_large_jump() {
   TEST_ASSERT_EQUAL_INT32(9698, daysBetween({2000, 1, 1}, {2026, 7, 21}));
 }
 
+static void test_addDays_zero_and_unknown() {
+  const LocalDate d{2026, 7, 6};
+  TEST_ASSERT_TRUE(addDays(d, 0) == d);
+  const LocalDate none{0, 0, 0};
+  TEST_ASSERT_TRUE(addDays(none, 5) == none);  // sentinel passes through
+}
+
+static void test_addDays_forward_across_month_and_year() {
+  TEST_ASSERT_TRUE(addDays({2026, 7, 31}, 1) == (LocalDate{2026, 8, 1}));
+  TEST_ASSERT_TRUE(addDays({2026, 12, 31}, 1) == (LocalDate{2027, 1, 1}));
+  TEST_ASSERT_TRUE(addDays({2026, 7, 6}, 30) == (LocalDate{2026, 8, 5}));
+}
+
+static void test_addDays_backward() {
+  TEST_ASSERT_TRUE(addDays({2026, 8, 1}, -1) == (LocalDate{2026, 7, 31}));
+  TEST_ASSERT_TRUE(addDays({2026, 1, 1}, -1) == (LocalDate{2025, 12, 31}));
+}
+
+static void test_addDays_leap_year() {
+  TEST_ASSERT_TRUE(addDays({2024, 2, 28}, 1) == (LocalDate{2024, 2, 29}));
+  TEST_ASSERT_TRUE(addDays({2024, 2, 28}, 2) == (LocalDate{2024, 3, 1}));
+}
+
+static void test_addDays_roundtrips_with_daysBetween() {
+  const LocalDate a{2026, 7, 6};
+  TEST_ASSERT_EQUAL_INT32(365, daysBetween(a, addDays(a, 365)));
+  TEST_ASSERT_EQUAL_INT32(-90, daysBetween(a, addDays(a, -90)));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_datekey_roundtrip);
@@ -63,5 +92,10 @@ int main(int, char**) {
   RUN_TEST(test_days_between_leap_year);
   RUN_TEST(test_days_between_negative_span);
   RUN_TEST(test_days_between_large_jump);
+  RUN_TEST(test_addDays_zero_and_unknown);
+  RUN_TEST(test_addDays_forward_across_month_and_year);
+  RUN_TEST(test_addDays_backward);
+  RUN_TEST(test_addDays_leap_year);
+  RUN_TEST(test_addDays_roundtrips_with_daysBetween);
   return UNITY_END();
 }
