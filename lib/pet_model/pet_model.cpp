@@ -253,5 +253,10 @@ bool petTick(PetState& st, uint32_t todayKey, int mins) {
   st.illday = (sickDays >= petcfg::kSickToIll)
                   ? dateKey(addDays(fromDateKey(onset), petcfg::kSickToIll))
                   : 0;
-  return false;  // death transition added in Task 6
+  // Sustained illness reaches the death threshold (~9 days total neglect).
+  if (sickDays >= petcfg::kSickToIll + petcfg::kIllToDead) {
+    st.alive = false;  // dates are kept so the memorial can show the name
+    return true;       // just died -> UI shows the memorial screen
+  }
+  return false;
 }

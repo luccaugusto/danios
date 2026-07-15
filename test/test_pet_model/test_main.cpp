@@ -345,6 +345,49 @@ static void test_health_labels_pt() {
   TEST_ASSERT_EQUAL_STRING("Muito doente", healthLabelPt(Health::CriticallyIll));
 }
 
+static void test_clock_jump_lands_straight_on_dead() {
+  PetState st = hatched(20260706u);  // full care on day 0
+  // Device off for 9 days; a single NTP resync recomputes to day+9. Spec:
+  // this is allowed to land straight on Dead in one recompute.
+  const bool died = petTick(st, dayPlus(9), 12 * 60);
+  TEST_ASSERT_TRUE(died);
+  TEST_ASSERT_FALSE(st.alive);
+  TEST_ASSERT_EQUAL_INT((int)Screen::Memorial, (int)currentScreen(st));
+}
+
+static void test_dead_pet_is_frozen() {
+  PetState st = hatched(20260706u);
+  petTick(st, dayPlus(9), 12 * 60);          // dies here
+  const uint32_t sickBefore = st.sickday;
+  const bool diedAgain = petTick(st, dayPlus(30), 12 * 60);
+  TEST_ASSERT_FALSE(diedAgain);              // no re-trigger once dead
+  TEST_ASSERT_FALSE(st.alive);
+  TEST_ASSERT_EQUAL_UINT32(sickBefore, st.sickday);  // state left untouched
+}
+
+static void test_recovery_just_before_death() {
+  PetState st = hatched(20260706u);
+  st.nightint = 0;
+  petTick(st, dayPlus(8), 12 * 60);          // sick 5 days: Critically Ill, alive
+  TEST_ASSERT_TRUE(st.alive);
+  TEST_ASSERT_EQUAL_INT((int)Health::CriticallyIll, (int)healthOf(st, dayPlus(8)));
+  // Owner rushes in and satisfies every need on day+8 (energy already recovered).
+  st.fed = st.played = st.cleaned = dayPlus(8);
+  const bool died = petTick(st, dayPlus(8), 12 * 60);
+  TEST_ASSERT_FALSE(died);
+  TEST_ASSERT_TRUE(st.alive);
+  TEST_ASSERT_EQUAL_UINT32(0u, st.sickday);  // pulled back to Healthy
+}
+
+static void test_rebirth_after_death_clears_badge() {
+  PetState st = hatched(20260706u);
+  petTick(st, dayPlus(9), 12 * 60);          // dead
+  TEST_ASSERT_TRUE(needsAttention(st, dayPlus(9)));  // badge lures user to memorial
+  rebirth(st);
+  TEST_ASSERT_EQUAL_INT((int)Screen::Egg, (int)currentScreen(st));
+  TEST_ASSERT_FALSE(needsAttention(st, dayPlus(9)));  // fresh egg: badge off
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_defaults_are_an_egg);
@@ -380,5 +423,9 @@ int main(int, char**) {
   RUN_TEST(test_petTick_writes_then_clears_sickday);
   RUN_TEST(test_petTick_backdates_illness_on_clock_jump);
   RUN_TEST(test_health_labels_pt);
+  RUN_TEST(test_clock_jump_lands_straight_on_dead);
+  RUN_TEST(test_dead_pet_is_frozen);
+  RUN_TEST(test_recovery_just_before_death);
+  RUN_TEST(test_rebirth_after_death_clears_badge);
   return UNITY_END();
 }
