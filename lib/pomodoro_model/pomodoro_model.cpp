@@ -1,7 +1,12 @@
 #include "pomodoro_model.h"
 
 void PomoTimer::configure(const PomoConfig& c) {
-  if (phase_ == PomoPhase::Idle) cfg_ = c;
+  if (phase_ == PomoPhase::Idle) {
+    cfg_ = c;
+    // Floor zero-length phases to 1 minute to prevent infinite loops in catchUp().
+    if (cfg_.work_min == 0) cfg_.work_min = 1;
+    if (cfg_.break_min == 0) cfg_.break_min = 1;
+  }
 }
 
 void PomoTimer::start(uint32_t now_ms) {

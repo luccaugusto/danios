@@ -17,7 +17,7 @@ struct PomoConfig {
 
 class PomoTimer {
  public:
-  void configure(const PomoConfig& c);  // ignored unless Idle
+  void configure(const PomoConfig& c);  // ignored unless Idle; zero minutes floored to 1
   PomoConfig config() const { return cfg_; }
 
   void start(uint32_t now_ms);  // Idle -> Work; ignored while running

@@ -126,6 +126,16 @@ static void test_wrap_across_boundary() {
   TEST_ASSERT_EQUAL_UINT32(3 * kMin, t.remainingMs(later));
 }
 
+static void test_zero_config_is_floored_to_one_minute() {
+  PomoTimer t;
+  t.configure({0, 0});
+  TEST_ASSERT_EQUAL_UINT16(1, t.config().work_min);
+  TEST_ASSERT_EQUAL_UINT16(1, t.config().break_min);
+  t.start(0);
+  // Would hang forever in catchUp() without the floor.
+  TEST_ASSERT_EQUAL(static_cast<int>(PomoPhase::Work), static_cast<int>(t.phase(2 * kMin)));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_starts_idle);
@@ -141,5 +151,6 @@ int main(int, char**) {
   RUN_TEST(test_configure_while_running_is_ignored);
   RUN_TEST(test_millis_wrap_is_safe);
   RUN_TEST(test_wrap_across_boundary);
+  RUN_TEST(test_zero_config_is_floored_to_one_minute);
   return UNITY_END();
 }
