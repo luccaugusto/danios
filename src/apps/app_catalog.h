@@ -24,5 +24,6 @@ inline constexpr AppInfo kCalc{"Calculadora", "S:/art/icons/calc.bin"};
 inline constexpr AppInfo kOracle{"Oráculo", "S:/art/icons/oracle.bin"};
 inline constexpr AppInfo kPet{"Bichinho", "S:/art/icons/pet.bin"};
 inline constexpr AppInfo kPomodoro{"Pomodoro", "S:/art/icons/pomodoro.bin"};
+inline constexpr AppInfo kMines{"Campo Minado", "S:/art/icons/minesweeper.bin"};
 inline constexpr AppInfo kSettings{"Configurações", "S:/art/icons/settings.bin"};
 }  // namespace catalog
