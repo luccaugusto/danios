@@ -127,36 +127,35 @@ Design is approved and hardware is in hand. Pick up at either:
 ---
 
 ## TODO
-- [ ] draw the images for the pet app — 10 sprites, `.bin` under `S:/art/pet/`
+- [x] draw the images for the pet app — 10 sprites, `.bin` under `S:/art/pet/`
       (paths from `lib/pet_model/pet_model.cpp`, render sizes from
       `src/apps/pet/PetApp.cpp`). Same workflow as weather:
       `assets/icons/svg_to_lvgl_bin.py <png> sd/art/pet/<name>.bin --size WxH`.
       Every slot shows a colored placeholder box until its file exists — the
       app is fully usable without art.
   - Growth-stage sprites (rendered 104×104 on the alive screen):
-    - [ ] `egg.bin` — also the egg screen, rendered 120×120 there
-    - [ ] `baby.bin` — days 0–2
-    - [ ] `child.bin` — days 3–9
-    - [ ] `teen.bin` — days 10–20
-    - [ ] `adult.bin` — day 21+
+    - [x] `egg.bin` — also the egg screen, rendered 120×120 there
+    - [x] `baby.bin` — days 0–2
+    - [x] `child.bin` — days 3–9
+    - [x] `teen.bin` — days 10–20
+    - [x] `adult.bin` — day 21+
   - Mess (rendered 30×30, up to 3 stacked in a row):
-    - [ ] `mess.bin`
-  - Food (reserved paths; the tray currently uses text buttons, so these are
-    for a future tray upgrade):
-    - [ ] `food_snack.bin`
-    - [ ] `food_meal.bin`
-    - [ ] `food_treat.bin`
-- [ ] rename pet app from bichinho to Pet
-- [ ] draw the images for the pomodoro app — 2 sprites. Same workflow
+    - [x] `mess.bin`
+  - Food (shown 40×40 in the feed tray; text buttons are the fallback when a
+    file is missing):
+    - [x] `food_snack.bin`
+    - [x] `food_meal.bin`
+    - [x] `food_treat.bin`
+- [x] draw the images for the pomodoro app — 2 sprites. Same workflow
       as weather/pet: `assets/icons/svg_to_lvgl_bin.py <png> sd/art/pomo/<name>.bin`,
       then copy `sd/` onto the card. The app shows colored placeholder boxes
       (red = trabalho, green = pausa) until the files exist.
   - Status sprites (rendered 120×120 in `src/apps/pomodoro/PomodoroApp.cpp`):
-    - [ ] `sd/art/pomo/work.bin` — work-phase sprite
-    - [ ] `sd/art/pomo/break.bin` — break-phase sprite
-- [ ] (optional) campo minado cell sprites — v1 draws text glyphs (`F`, `*`)
-      and is fully playable without art; if drawn, wire in
-      `src/apps/minesweeper/MinesweeperApp.cpp` (drawn at cell size, 26/19 px):
-  - [ ] `sd/art/mines/flag.bin`
-  - [ ] `sd/art/mines/mine.bin`
-- [ ] make app fonts a little smaller so they don't overflow
+    - [x] `sd/art/pomo/work.bin` — work-phase sprite
+    - [x] `sd/art/pomo/break.bin` — break-phase sprite
+- [x] (optional) campo minado cell sprites — drawn at 26×26
+      (`sd/art/mines/flag.bin`, `sd/art/mines/mine.bin`) and wired in
+      `src/apps/minesweeper/MinesweeperApp.cpp` (RAM-loaded once per board,
+      blitted per cell with zoom to match the current cell size; text glyphs
+      `F`/`*` remain the no-SD fallback)
+- [x] make app fonts a little smaller so they don't overflow
