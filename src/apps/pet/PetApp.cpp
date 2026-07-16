@@ -290,9 +290,19 @@ void PetApp::openFoodTray() {
   for (Food f : foods) {
     lv_obj_t* btn = lv_btn_create(modal);
     lv_obj_set_width(btn, LV_PCT(88));
-    lv_obj_t* lbl = lv_label_create(btn);
-    lv_label_set_text(lbl, foodLabelPt(f));
-    lv_obj_center(lbl);
+    // Food sprite when it exists on SD, text label as the fallback
+    // (same placeholder rule as the pet art slots).
+    const char* sprite = foodSprite(f);
+    if (storage_->exists(sprite + 2)) {  // "S:" stripped for StorageService
+      lv_obj_set_style_pad_ver(btn, 4, 0);
+      lv_obj_t* img = lv_img_create(btn);
+      lv_img_set_src(img, sprite);
+      lv_obj_center(img);
+    } else {
+      lv_obj_t* lbl = lv_label_create(btn);
+      lv_label_set_text(lbl, foodLabelPt(f));
+      lv_obj_center(lbl);
+    }
     FoodCtx* ctx = new FoodCtx{this, f, modal};
     lv_obj_add_event_cb(btn, onFoodChosen, LV_EVENT_CLICKED, ctx);
     lv_obj_add_event_cb(
