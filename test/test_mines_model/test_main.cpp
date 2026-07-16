@@ -204,6 +204,19 @@ static void test_chord_on_zero_cell_is_a_no_op() {
   TEST_ASSERT_EQUAL(static_cast<int>(GameState::Playing), static_cast<int>(b.state()));
 }
 
+static void test_flag_before_first_reveal_survives_and_blocks_flood() {
+  MinesBoard b(3, 3, 2, zero);
+  b.toggleFlag(1, 1);  // Fresh: legal, inside the future flood region
+  TEST_ASSERT_EQUAL_UINT16(1, b.flagsPlaced());
+  b.reveal(2, 2);  // places mines; flood must skip the flagged cell
+  TEST_ASSERT_EQUAL(static_cast<int>(GameState::Playing), static_cast<int>(b.state()));
+  TEST_ASSERT_EQUAL(static_cast<int>(CellView::Flagged), static_cast<int>(b.view(1, 1)));
+  TEST_ASSERT_EQUAL_UINT16(1, b.flagsPlaced());
+  b.toggleFlag(1, 1);
+  b.reveal(1, 1);
+  TEST_ASSERT_EQUAL(static_cast<int>(CellView::Revealed), static_cast<int>(b.view(1, 1)));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_fresh_board_all_hidden);
@@ -224,5 +237,6 @@ int main(int, char**) {
   RUN_TEST(test_chord_with_wrong_flag_loses);
   RUN_TEST(test_chord_with_flag_count_mismatch_is_a_no_op);
   RUN_TEST(test_chord_on_zero_cell_is_a_no_op);
+  RUN_TEST(test_flag_before_first_reveal_survives_and_blocks_flood);
   return UNITY_END();
 }

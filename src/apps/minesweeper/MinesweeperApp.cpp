@@ -280,6 +280,7 @@ void MinesweeperApp::onGridClicked(lv_event_t* e) {
   lv_indev_get_point(indev, &p);
   lv_area_t a;
   lv_obj_get_coords(self->grid_, &a);
+  if (p.x < a.x1 || p.y < a.y1 || p.x > a.x2 || p.y > a.y2) return;
   self->handleCellTap((p.y - a.y1) / self->cellPx_, (p.x - a.x1) / self->cellPx_);
 }
 
