@@ -86,7 +86,40 @@ void MinesBoard::floodReveal(uint8_t r0, uint8_t c0) {
   }
 }
 
-void MinesBoard::chord(uint8_t, uint8_t) {}  // Task 2
+// Chording: tapping a revealed number whose adjacent-flag count matches its
+// number reveals all its non-flagged hidden neighbors (mines included — a
+// wrong flag loses, classic behavior).
+void MinesBoard::chord(uint8_t r, uint8_t c) {
+  const Cell& cell = cells_[idx(r, c)];
+  if (cell.adj == 0) return;
+  uint8_t flagsAround = 0;
+  for (int dr = -1; dr <= 1; ++dr)
+    for (int dc = -1; dc <= 1; ++dc)
+      if (inBounds(r + dr, c + dc) && cells_[idx(r + dr, c + dc)].flagged)
+        ++flagsAround;
+  if (flagsAround != cell.adj) return;
+
+  // First pass: any unflagged hidden mine neighbor loses immediately.
+  for (int dr = -1; dr <= 1; ++dr)
+    for (int dc = -1; dc <= 1; ++dc) {
+      if (!inBounds(r + dr, c + dc)) continue;
+      Cell& n = cells_[idx(r + dr, c + dc)];
+      if (!n.revealed && !n.flagged && n.mine) {
+        n.revealed = true;
+        state_ = GameState::Lost;
+        return;
+      }
+    }
+  // Second pass: flood-reveal the safe ones.
+  for (int dr = -1; dr <= 1; ++dr)
+    for (int dc = -1; dc <= 1; ++dc)
+      if (inBounds(r + dr, c + dc)) {
+        const Cell& n = cells_[idx(r + dr, c + dc)];
+        if (!n.revealed && !n.flagged)
+          floodReveal(static_cast<uint8_t>(r + dr), static_cast<uint8_t>(c + dc));
+      }
+  checkWin();
+}
 
 void MinesBoard::checkWin() {
   if (state_ != GameState::Playing) return;

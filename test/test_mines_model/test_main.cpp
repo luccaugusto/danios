@@ -154,6 +154,56 @@ static void test_mine_count_clamps_to_available_candidates() {
   TEST_ASSERT_EQUAL(static_cast<int>(GameState::Won), static_cast<int>(b.state()));
 }
 
+static void test_flag_blocks_reveal_until_unflagged() {
+  MinesBoard b = rigged3x3();
+  b.toggleFlag(0, 2);
+  TEST_ASSERT_EQUAL_UINT16(1, b.flagsPlaced());
+  b.reveal(0, 2);  // blocked
+  TEST_ASSERT_EQUAL(static_cast<int>(CellView::Flagged), static_cast<int>(b.view(0, 2)));
+  TEST_ASSERT_EQUAL(static_cast<int>(GameState::Playing), static_cast<int>(b.state()));
+  b.toggleFlag(0, 2);
+  TEST_ASSERT_EQUAL_UINT16(0, b.flagsPlaced());
+  b.reveal(0, 2);
+  TEST_ASSERT_EQUAL(static_cast<int>(GameState::Won), static_cast<int>(b.state()));
+}
+
+static void test_flag_on_revealed_cell_is_a_no_op() {
+  MinesBoard b = rigged3x3();
+  b.toggleFlag(2, 2);
+  TEST_ASSERT_EQUAL_UINT16(0, b.flagsPlaced());
+  TEST_ASSERT_EQUAL(static_cast<int>(CellView::Revealed), static_cast<int>(b.view(2, 2)));
+}
+
+static void test_chord_with_correct_flags_reveals_neighbors() {
+  MinesBoard b = rigged3x3();
+  // (1,2) shows 1; its only mine neighbor is (0,1). Flag it and chord.
+  b.toggleFlag(0, 1);
+  b.reveal(1, 2);  // chord: reveals (0,2), the last safe cell
+  TEST_ASSERT_EQUAL(static_cast<int>(GameState::Won), static_cast<int>(b.state()));
+  TEST_ASSERT_EQUAL(static_cast<int>(CellView::Revealed), static_cast<int>(b.view(0, 2)));
+}
+
+static void test_chord_with_wrong_flag_loses() {
+  MinesBoard b = rigged3x3();
+  // Wrong guess: flag safe (0,2) instead of mine (0,1), chord (1,2).
+  b.toggleFlag(0, 2);
+  b.reveal(1, 2);  // reveals unflagged neighbor (0,1) — a mine
+  TEST_ASSERT_EQUAL(static_cast<int>(GameState::Lost), static_cast<int>(b.state()));
+}
+
+static void test_chord_with_flag_count_mismatch_is_a_no_op() {
+  MinesBoard b = rigged3x3();
+  b.reveal(1, 2);  // no flags around: nothing happens
+  TEST_ASSERT_EQUAL(static_cast<int>(GameState::Playing), static_cast<int>(b.state()));
+  TEST_ASSERT_EQUAL(static_cast<int>(CellView::Hidden), static_cast<int>(b.view(0, 2)));
+}
+
+static void test_chord_on_zero_cell_is_a_no_op() {
+  MinesBoard b = rigged3x3();
+  b.reveal(2, 0);  // revealed 0-cell: chord must not fire
+  TEST_ASSERT_EQUAL(static_cast<int>(GameState::Playing), static_cast<int>(b.state()));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_fresh_board_all_hidden);
@@ -168,5 +218,11 @@ int main(int, char**) {
   RUN_TEST(test_out_of_bounds_are_no_ops);
   RUN_TEST(test_hard_preset_geometry);
   RUN_TEST(test_mine_count_clamps_to_available_candidates);
+  RUN_TEST(test_flag_blocks_reveal_until_unflagged);
+  RUN_TEST(test_flag_on_revealed_cell_is_a_no_op);
+  RUN_TEST(test_chord_with_correct_flags_reveals_neighbors);
+  RUN_TEST(test_chord_with_wrong_flag_loses);
+  RUN_TEST(test_chord_with_flag_count_mismatch_is_a_no_op);
+  RUN_TEST(test_chord_on_zero_cell_is_a_no_op);
   return UNITY_END();
 }
