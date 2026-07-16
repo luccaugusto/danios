@@ -11,13 +11,21 @@ namespace {
 struct Preset {
   uint8_t rows, cols;
   uint16_t mines;
-  uint16_t cellPx;
   const char* bestKey;
 };
-constexpr Preset kEasy{9, 9, 18, 26, "mines_best_easy"};
-constexpr Preset kHard{13, 9, 33, 19, "mines_best_hard"};
+constexpr Preset kEasy{9, 9, 18, "mines_best_easy"};
+constexpr Preset kHard{13, 9, 33, "mines_best_hard"};
 
 constexpr lv_coord_t kHudH = 32;
+
+// The played config records a best time only when it exactly matches a
+// preset — a manually dialed 9x9/18 is the same game as Fácil.
+const char* bestKeyFor(const MinesBoard& g) {
+  for (const Preset* p : {&kEasy, &kHard})
+    if (g.rows() == p->rows && g.cols() == p->cols && g.mineCount() == p->mines)
+      return p->bestKey;
+  return nullptr;
+}
 
 // Classic per-number colors.
 lv_color_t numColor(uint8_t n) {
@@ -92,7 +100,7 @@ void MinesweeperApp::showStart() {
   grid_ = minesLbl_ = timeLbl_ = flagBtn_ = nullptr;
 
   lv_obj_t* title = lv_label_create(root_);
-  lv_label_set_text(title, "Campo Minado");
+  lv_label_set_text(title, "Minas");
   lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 14);
 
   lv_coord_t y = 52;
@@ -138,13 +146,15 @@ void MinesweeperApp::showStart() {
   }
 }
 
-void MinesweeperApp::newGame(Difficulty d) {
-  diff_ = d;
-  const Preset& p = (d == Difficulty::Easy) ? kEasy : kHard;
-  cellPx_ = p.cellPx;
+void MinesweeperApp::newGame(uint8_t rows, uint8_t cols, uint16_t mines) {
+  lv_obj_update_layout(root_);
+  const lv_coord_t w = lv_obj_get_content_width(root_);
+  const lv_coord_t h = lv_obj_get_content_height(root_) - kHudH - 2;
+  cellPx_ = LV_MIN(w / cols, h / rows);
+  if (cellPx_ > 32) cellPx_ = 32;  // small grids: don't balloon the cells
   accumMs_ = 0;
   timing_ = false;  // starts on the first reveal
-  game_.reset(new MinesBoard(p.rows, p.cols, p.mines,
+  game_.reset(new MinesBoard(rows, cols, mines,
                              []() -> uint32_t { return esp_random(); }));
   showBoard();
 }
@@ -225,8 +235,8 @@ void MinesweeperApp::endGame() {
   const bool won = game_->state() == GameState::Won;
   const uint32_t secs = (accumMs_ + 999) / 1000;
   bool newBest = false;
-  if (won) {
-    const char* key = (diff_ == Difficulty::Easy) ? kEasy.bestKey : kHard.bestKey;
+  const char* key = won ? bestKeyFor(*game_) : nullptr;
+  if (key != nullptr) {
     const uint32_t best = store_->getU32(key, 0);
     if (best == 0 || secs < best) {
       store_->setU32(key, secs);
@@ -256,10 +266,12 @@ void MinesweeperApp::endGame() {
 }
 
 void MinesweeperApp::onEasy(lv_event_t* e) {
-  static_cast<MinesweeperApp*>(lv_event_get_user_data(e))->newGame(Difficulty::Easy);
+  static_cast<MinesweeperApp*>(lv_event_get_user_data(e))
+      ->newGame(kEasy.rows, kEasy.cols, kEasy.mines);
 }
 void MinesweeperApp::onHard(lv_event_t* e) {
-  static_cast<MinesweeperApp*>(lv_event_get_user_data(e))->newGame(Difficulty::Hard);
+  static_cast<MinesweeperApp*>(lv_event_get_user_data(e))
+      ->newGame(kHard.rows, kHard.cols, kHard.mines);
 }
 void MinesweeperApp::onResume(lv_event_t* e) {
   static_cast<MinesweeperApp*>(lv_event_get_user_data(e))->showBoard();

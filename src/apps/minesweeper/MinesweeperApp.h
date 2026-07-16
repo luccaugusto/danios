@@ -36,11 +36,10 @@ class MinesweeperApp : public App {
 
  private:
   enum class Screen : uint8_t { Start, Board };
-  enum class Difficulty : uint8_t { Easy, Hard };
 
   void showStart();
   void showBoard();
-  void newGame(Difficulty d);
+  void newGame(uint8_t rows, uint8_t cols, uint16_t mines);
   void pauseGame();  // fold running time into accumMs_
   void handleCellTap(int row, int col);
   void updateHud();
@@ -58,7 +57,6 @@ class MinesweeperApp : public App {
   ISettingsStore* store_ = nullptr;
 
   std::unique_ptr<MinesBoard> game_;
-  Difficulty diff_ = Difficulty::Easy;
   Screen screen_ = Screen::Start;
   uint16_t cellPx_ = 26;
   bool timing_ = false;    // Playing + board screen on display
