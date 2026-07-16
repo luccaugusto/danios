@@ -9,6 +9,7 @@
 #include "apps/calculator/CalculatorApp.h"
 #include "apps/oracle/OracleApp.h"
 #include "apps/pet/PetApp.h"
+#include "apps/minesweeper/MinesweeperApp.h"
 #include "apps/pomodoro/PomodoroApp.h"
 #include "apps/settings/SettingsApp.h"
 #include "apps/weather/WeatherApp.h"
@@ -47,6 +48,7 @@ static CalculatorApp calculatorApp;
 static OracleApp oracleApp;
 static PetApp petApp;
 static PomodoroApp pomodoroApp;
+static MinesweeperApp minesApp;
 static SettingsApp settingsApp;
 
 // --- Screen sleep (spec 6.4): backlight off after disp.sleep_s of inactivity;
@@ -154,6 +156,8 @@ void setup() {
   launcher.registerApp(&petApp);
   pomodoroApp.setDeps(settings, storage);
   launcher.registerApp(&pomodoroApp);
+  minesApp.setDeps(settings);
+  launcher.registerApp(&minesApp);
   settingsApp.setDeps(settings, displayService, storage, radioManager,
                       wifiService, timeService, btAudio);
   launcher.registerApp(&settingsApp);  // last grid icon
