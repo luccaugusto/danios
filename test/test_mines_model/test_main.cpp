@@ -145,6 +145,15 @@ static void test_hard_preset_geometry() {  // 9x13 board = 13 rows x 9 cols
   TEST_ASSERT_EQUAL_UINT8(9, b.cols());
 }
 
+static void test_mine_count_clamps_to_available_candidates() {
+  // 3x3 board, 20 mines requested but only 5 candidates exist outside the
+  // 3x3 zone around (2,2): the count clamps and the game stays winnable.
+  MinesBoard b(3, 3, 20, zero);
+  b.reveal(2, 2);
+  TEST_ASSERT_EQUAL_UINT16(5, b.mineCount());
+  TEST_ASSERT_EQUAL(static_cast<int>(GameState::Won), static_cast<int>(b.state()));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_fresh_board_all_hidden);
@@ -158,5 +167,6 @@ int main(int, char**) {
   RUN_TEST(test_no_ops_after_game_over);
   RUN_TEST(test_out_of_bounds_are_no_ops);
   RUN_TEST(test_hard_preset_geometry);
+  RUN_TEST(test_mine_count_clamps_to_available_candidates);
   return UNITY_END();
 }

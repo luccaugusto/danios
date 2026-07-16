@@ -22,6 +22,9 @@ void MinesBoard::placeMines(uint8_t safeR, uint8_t safeC) {
                            std::abs(c - static_cast<int>(safeC)) <= 1;
       if (!nearTap) cand.push_back(static_cast<uint16_t>(idx(r, c)));
     }
+  // Clamp mines_ to available candidates: over-requested mines would cause UB
+  // in the modulo below and make the game unwinnable (safe cell count < 0).
+  if (mines_ > cand.size()) mines_ = static_cast<uint16_t>(cand.size());
   for (uint16_t i = 0; i < mines_; ++i) {
     const uint16_t j =
         i + static_cast<uint16_t>(rng_() % static_cast<uint32_t>(cand.size() - i));
