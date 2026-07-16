@@ -154,4 +154,9 @@ Design is approved and hardware is in hand. Pick up at either:
   - Status sprites (rendered 120×120 in `src/apps/pomodoro/PomodoroApp.cpp`):
     - [ ] `sd/art/pomo/work.bin` — work-phase sprite
     - [ ] `sd/art/pomo/break.bin` — break-phase sprite
+- [ ] (optional) campo minado cell sprites — v1 draws text glyphs (`F`, `*`)
+      and is fully playable without art; if drawn, wire in
+      `src/apps/minesweeper/MinesweeperApp.cpp` (drawn at cell size, 26/19 px):
+  - [ ] `sd/art/mines/flag.bin`
+  - [ ] `sd/art/mines/mine.bin`
 - [ ] make app fonts a little smaller so they don't overflow
