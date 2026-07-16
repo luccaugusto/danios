@@ -133,14 +133,14 @@ static void test_out_of_bounds_are_no_ops() {
 
 static void test_hard_preset_geometry() {  // 9x13 board = 13 rows x 9 cols
   g_seed = 99;
-  MinesBoard b(13, 9, 25, lcg);
+  MinesBoard b(13, 9, 33, lcg);
   b.reveal(6, 4);
   TEST_ASSERT_EQUAL(static_cast<int>(GameState::Playing), static_cast<int>(b.state()));
   uint16_t mines = 0;
   for (uint8_t r = 0; r < 13; ++r)
     for (uint8_t c = 0; c < 9; ++c)
       if (b.isMine(r, c)) ++mines;
-  TEST_ASSERT_EQUAL_UINT16(25, mines);
+  TEST_ASSERT_EQUAL_UINT16(33, mines);
   TEST_ASSERT_EQUAL_UINT8(13, b.rows());
   TEST_ASSERT_EQUAL_UINT8(9, b.cols());
 }

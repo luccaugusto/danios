@@ -14,8 +14,8 @@ struct Preset {
   uint16_t cellPx;
   const char* bestKey;
 };
-constexpr Preset kEasy{9, 9, 10, 26, "mines_best_easy"};
-constexpr Preset kHard{13, 9, 25, 19, "mines_best_hard"};
+constexpr Preset kEasy{9, 9, 18, 26, "mines_best_easy"};
+constexpr Preset kHard{13, 9, 33, 19, "mines_best_hard"};
 
 constexpr lv_coord_t kHudH = 32;
 
@@ -114,8 +114,8 @@ void MinesweeperApp::showStart() {
     const char* name;
     lv_event_cb_t cb;
   };
-  const Row rows[] = {{kEasy, "Fácil - 9x9, 10 minas", onEasy},
-                      {kHard, "Difícil - 9x13, 25 minas", onHard}};
+  const Row rows[] = {{kEasy, "Fácil - 9x9, 18 minas", onEasy},
+                      {kHard, "Difícil - 9x13, 33 minas", onHard}};
   for (const Row& row : rows) {
     lv_obj_t* btn = lv_btn_create(root_);
     lv_obj_set_size(btn, 204, 62);
