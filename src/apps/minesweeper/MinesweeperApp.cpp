@@ -197,7 +197,7 @@ void MinesweeperApp::stepSetup(uint8_t field, int8_t delta) {
     setupCols_ = static_cast<uint8_t>(
         clampU(setupCols_ + delta, kMinRC, kMaxCols));
   else
-    setupMines_ = clampU(setupMines_ + delta, 1, 0xFFFF);
+    setupMines_ = static_cast<uint16_t>(setupMines_ + delta);
   // Any change can shrink the mines ceiling; keep the config always valid.
   setupMines_ = clampU(setupMines_, 1, maxMines(setupRows_, setupCols_));
   refreshSetupLabels();
