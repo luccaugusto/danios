@@ -1,6 +1,8 @@
-# montserrat_pt_14
+# montserrat_pt_14 / montserrat_pt_12
 
-Custom 14px Montserrat LVGL font for danios' Portuguese UI. Extends LVGL's
+Custom 14px Montserrat LVGL font for danios' Portuguese UI (plus a 12px
+variant, `montserrat_pt_12`, used by the launcher grid titles — same ranges,
+regenerate with `--size 12` and the matching output name). Extends LVGL's
 built-in `lv_font_montserrat_14` ASCII range with Latin-1 accented glyphs
 (`0xA0-0xFF`, e.g. ç, õ, ú, Ç) needed for strings like "Configurações",
 "Música", "Oráculo", while keeping the same FontAwesome symbol glyphs

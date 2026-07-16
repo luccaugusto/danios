@@ -183,7 +183,7 @@ void WeatherApp::renderEmpty() {
   lv_obj_t* lbl = lv_label_create(root_);
   lv_label_set_text(lbl,
                     "Não consegui ver o céu agora.\n\n"
-                    "Verifique o WiFi em Configurações.");
+                    "Verifique o WiFi em Config.");
   lv_obj_set_width(lbl, 224);
   lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
   lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);

@@ -6,7 +6,7 @@
 
 namespace {
 constexpr lv_coord_t kCellW = 80;
-constexpr lv_coord_t kCellH = 110;
+constexpr lv_coord_t kCellH = 98;  // title bottom y93 + 13px row gap - icon y8
 constexpr lv_coord_t kIconSize = 64;
 // Fallback icon colors, indexed by grid position (art arrives with F3).
 constexpr uint32_t kIconColors[] = {0x4A90D9, 0x50B86C, 0xE0A030,
@@ -155,7 +155,9 @@ void Launcher::rebuildGrid() {
 
     lv_obj_t* title = lv_label_create(cell);
     lv_label_set_text(title, app->title());
-    lv_obj_align(title, LV_ALIGN_BOTTOM_MID, 0, -8);
+    lv_obj_set_style_text_font(title, &montserrat_pt_12, 0);
+    // 7 px below the icon's bottom edge (8 + kIconSize).
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 8 + kIconSize + 7);
 
     lv_obj_t* badge = lv_obj_create(btn);
     lv_obj_remove_style_all(badge);

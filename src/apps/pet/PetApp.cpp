@@ -147,7 +147,7 @@ void PetApp::buildEgg() {
     lv_obj_t* hint = lv_label_create(root_);
     lv_label_set_text(hint,
                       "Preciso saber a data para\nnascer! Configure o relógio\n"
-                      "em Configurações.");
+                      "em Config.");
     lv_obj_set_style_text_color(hint, lv_palette_main(LV_PALETTE_RED), 0);
     lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
   }
