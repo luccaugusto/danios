@@ -49,6 +49,7 @@ void Launcher::openApp(const char* id) {
   statusBar_.setRadio(mode);
   app->onEnter();
   buildAppScreen();
+  resetAppContainer();
   lv_label_set_text(appTitleLabel_, app->title());
   app->buildUI(appContainer_);
   lv_scr_load(appScreen_);
@@ -202,7 +203,13 @@ void Launcher::buildAppScreen() {
 
   appTitleLabel_ = lv_label_create(topBar);
   lv_obj_align(appTitleLabel_, LV_ALIGN_CENTER, 0, 0);
+}
 
+void Launcher::resetAppContainer() {
+  // Apps may style the container itself (Pet/Settings set flex flow on it),
+  // and goHome()'s lv_obj_clean() only removes children — recreate it so
+  // every app builds into a pristine container.
+  if (appContainer_) lv_obj_del(appContainer_);
   appContainer_ = lv_obj_create(appScreen_);
   lv_obj_remove_style_all(appContainer_);
   lv_obj_set_pos(appContainer_, 0, kTopBarH);

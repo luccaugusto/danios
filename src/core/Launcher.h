@@ -38,6 +38,7 @@ class Launcher {
   void buildHomeScreen();
   void rebuildGrid();
   void buildAppScreen();
+  void resetAppContainer();
   void showDisabledHint(const char* title);
   static void onIconClicked(lv_event_t* e);
   static void onBackClicked(lv_event_t* e);
