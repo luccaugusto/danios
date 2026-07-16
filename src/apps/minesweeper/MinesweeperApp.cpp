@@ -5,6 +5,8 @@
 #include <esp_system.h>
 
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 namespace {
 
@@ -58,6 +60,33 @@ void fmtTime(char* buf, size_t n, uint32_t secs) {
            static_cast<unsigned>(secs % 60));
 }
 
+// Load an LVGL v8 .bin (4-byte lv_img_header_t + pixel data) from the SD into
+// a malloc'd buffer so onGridDraw can blit it per cell without touching the
+// card. Returns the buffer (caller frees) and fills *dsc, or nullptr if the
+// file is missing/short/unreadable — callers fall back to the text glyphs.
+uint8_t* loadImgBin(const char* path, lv_img_dsc_t* dsc) {
+  lv_fs_file_t f;
+  if (lv_fs_open(&f, path, LV_FS_MODE_RD) != LV_FS_RES_OK) return nullptr;
+  uint32_t size = 0;
+  lv_fs_seek(&f, 0, LV_FS_SEEK_END);
+  lv_fs_tell(&f, &size);
+  lv_fs_seek(&f, 0, LV_FS_SEEK_SET);
+  uint8_t* buf = nullptr;
+  uint32_t rd = 0;
+  if (size > sizeof(lv_img_header_t))
+    buf = static_cast<uint8_t*>(malloc(size));
+  if (buf != nullptr) lv_fs_read(&f, buf, size, &rd);
+  lv_fs_close(&f);
+  if (buf == nullptr || rd != size) {
+    free(buf);
+    return nullptr;
+  }
+  memcpy(&dsc->header, buf, sizeof(lv_img_header_t));
+  dsc->data = buf + sizeof(lv_img_header_t);
+  dsc->data_size = size - sizeof(lv_img_header_t);
+  return buf;
+}
+
 }  // namespace
 
 void MinesweeperApp::setDeps(ISettingsStore& store) { store_ = &store; }
@@ -78,6 +107,9 @@ void MinesweeperApp::onExit() {
   screen_ = Screen::Start;  // re-enter lands on the start screen
   root_ = grid_ = minesLbl_ = timeLbl_ = flagBtn_ = nullptr;
   setupLbl_[0] = setupLbl_[1] = setupLbl_[2] = nullptr;
+  free(flagBuf_);
+  free(mineBuf_);
+  flagBuf_ = mineBuf_ = nullptr;
 }
 
 bool MinesweeperApp::handleBack() {
@@ -249,6 +281,11 @@ void MinesweeperApp::showBoard() {
   screen_ = Screen::Board;
   lv_obj_clean(root_);
   setupLbl_[0] = setupLbl_[1] = setupLbl_[2] = nullptr;
+
+  // Cell sprites, loaded once per visit (freed in onExit). Missing files just
+  // leave the buffers null and the draw handler keeps its text glyphs.
+  if (flagBuf_ == nullptr) flagBuf_ = loadImgBin("S:/art/mines/flag.bin", &flagDsc_);
+  if (mineBuf_ == nullptr) mineBuf_ = loadImgBin("S:/art/mines/mine.bin", &mineDsc_);
 
   minesLbl_ = lv_label_create(root_);
   lv_obj_align(minesLbl_, LV_ALIGN_TOP_LEFT, 8, 8);
@@ -433,17 +470,34 @@ void MinesweeperApp::onGridDraw(lv_event_t* e) {
       const char* txt = nullptr;
       char num[2] = {0, 0};
       lv_color_t tc = lv_color_black();
+      const lv_img_dsc_t* sprite = nullptr;
       if (v == CellView::Flagged) {
+        if (self->flagBuf_ != nullptr) sprite = &self->flagDsc_;
         txt = "F";
         tc = lv_color_hex(0xD32F2F);
       } else if (lost && g->isMine(r, c)) {
+        if (self->mineBuf_ != nullptr) sprite = &self->mineDsc_;
         txt = "*";  // post-loss: show every unflagged mine
       } else if (v == CellView::Revealed && g->adjacent(r, c) > 0) {
         num[0] = static_cast<char>('0' + g->adjacent(r, c));
         txt = num;
         tc = numColor(g->adjacent(r, c));
       }
-      if (txt != nullptr) {
+      if (sprite != nullptr) {
+        // Blit the sprite scaled to the cell: zoom is relative to the native
+        // size around pivot (0,0) — dsc_init zeroes the pivot — so the drawn
+        // area is exactly cell.x1/y1 .. +px.
+        lv_draw_img_dsc_t id;
+        lv_draw_img_dsc_init(&id);
+        id.zoom = static_cast<uint16_t>(px * 256 / sprite->header.w);
+        id.antialias = 1;
+        lv_area_t ia;
+        ia.x1 = cell.x1;
+        ia.y1 = cell.y1;
+        ia.x2 = cell.x1 + static_cast<lv_coord_t>(sprite->header.w) - 1;
+        ia.y2 = cell.y1 + static_cast<lv_coord_t>(sprite->header.h) - 1;
+        lv_draw_img(ctx, &id, &ia, sprite);
+      } else if (txt != nullptr) {
         lv_draw_label_dsc_init(&ld);
         ld.color = tc;
         ld.font = LV_FONT_DEFAULT;

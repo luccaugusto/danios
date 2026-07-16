@@ -90,4 +90,10 @@ class MinesweeperApp : public App {
   lv_obj_t* minesLbl_ = nullptr;
   lv_obj_t* timeLbl_ = nullptr;
   lv_obj_t* flagBtn_ = nullptr;  // checkable; checked = flag mode
+
+  // Cell sprites RAM-loaded from SD by showBoard() (null = draw text glyphs).
+  // The dsc_ data points into the owned buffers; freed in onExit.
+  lv_img_dsc_t flagDsc_{}, mineDsc_{};
+  uint8_t* flagBuf_ = nullptr;
+  uint8_t* mineBuf_ = nullptr;
 };
