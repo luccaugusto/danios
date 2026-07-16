@@ -29,7 +29,8 @@ void OracleApp::onEnter() {
 void OracleApp::buildUI(lv_obj_t* parent) {
   // Parent is the launcher's style-stripped 240×288 container below the top
   // bar (back arrow + "Oráculo" title are the launcher's — none here).
-  if (storage_->exists(kFrameSdPath)) {
+  const bool has_frame = storage_->exists(kFrameSdPath);
+  if (has_frame) {
     lv_obj_t* frame = lv_img_create(parent);
     lv_img_set_src(frame, kFrameLvglPath);
     lv_obj_center(frame);
@@ -52,7 +53,10 @@ void OracleApp::buildUI(lv_obj_t* parent) {
   lv_obj_set_width(label_, 184);
   lv_obj_set_style_text_align(label_, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_style_text_line_space(label_, 4, 0);
-  lv_obj_center(label_);
+  // Frame art has a white background; the placeholder container stays dark,
+  // so the default light text is kept there.
+  if (has_frame) lv_obj_set_style_text_color(label_, lv_color_black(), 0);
+  lv_obj_align(label_, LV_ALIGN_CENTER, 0, -20);
 
   if (lines_.empty()) {
     // Spec §6.5: file missing or empty → tell the maker where to put it.
