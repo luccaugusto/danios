@@ -8,8 +8,10 @@ namespace {
 SettingsApp* g_self = nullptr;  // single instance, owned by main.cpp
 
 // F4/F5/A3 sections append here and to the switch in showSection.
+// "Bluetooth" (index 6, buildBluetoothSection) is hidden until the Music app
+// ships (A4 paused) — pairing has no use without it. Re-append to re-enable.
 const char* kSectionNames[] = {"Tela",    "Unidades",       "Sobre", "WiFi",
-                               "Relógio", "Local do clima", "Bluetooth"};
+                               "Relógio", "Local do clima"};
 constexpr int kSectionCount =
     static_cast<int>(sizeof(kSectionNames) / sizeof(kSectionNames[0]));
 }  // namespace
