@@ -18,6 +18,18 @@ constexpr Preset kHard{13, 9, 33, "mines_best_hard"};
 
 constexpr lv_coord_t kHudH = 32;
 
+constexpr uint8_t kMinRC = 5, kMaxRows = 14, kMaxCols = 12;
+
+// 35% cap: keeps first-tap safety satisfiable (5x5: 8 <= 25-9) and admits
+// both presets (18/81, 33/117).
+constexpr uint16_t maxMines(uint8_t rows, uint8_t cols) {
+  return static_cast<uint16_t>(rows * cols * 35U / 100U);
+}
+
+uint16_t clampU(uint32_t v, uint16_t lo, uint16_t hi) {
+  return v < lo ? lo : (v > hi ? hi : static_cast<uint16_t>(v));
+}
+
 // The played config records a best time only when it exactly matches a
 // preset — a manually dialed 9x9/18 is the same game as Fácil.
 const char* bestKeyFor(const MinesBoard& g) {
@@ -65,6 +77,7 @@ void MinesweeperApp::onExit() {
   }
   screen_ = Screen::Start;  // re-enter lands on the start screen
   root_ = grid_ = minesLbl_ = timeLbl_ = flagBtn_ = nullptr;
+  setupLbl_[0] = setupLbl_[1] = setupLbl_[2] = nullptr;
 }
 
 bool MinesweeperApp::handleBack() {
@@ -98,17 +111,18 @@ void MinesweeperApp::showStart() {
   screen_ = Screen::Start;
   lv_obj_clean(root_);
   grid_ = minesLbl_ = timeLbl_ = flagBtn_ = nullptr;
+  loadSetup();
 
   lv_obj_t* title = lv_label_create(root_);
   lv_label_set_text(title, "Minas");
-  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 14);
+  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 4);
 
-  lv_coord_t y = 52;
+  lv_coord_t y = 26;
   if (resumable()) {
     lv_obj_t* btn = lv_btn_create(root_);
-    lv_obj_set_size(btn, 204, 48);
+    lv_obj_set_size(btn, 224, 40);
     lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, y);
-    y += 62;
+    y += 46;
     char t[16];
     fmtTime(t, sizeof t, accumMs_ / 1000);
     lv_obj_t* l = lv_label_create(btn);
@@ -117,33 +131,105 @@ void MinesweeperApp::showStart() {
     lv_obj_add_event_cb(btn, onResume, LV_EVENT_CLICKED, this);
   }
 
-  struct Row {
+  static const char* kNames[] = {"Linhas", "Colunas", "Minas"};
+  for (uint8_t f = 0; f < 3; ++f) {
+    lv_obj_t* name = lv_label_create(root_);
+    lv_label_set_text(name, kNames[f]);
+    lv_obj_align(name, LV_ALIGN_TOP_LEFT, 8, y + 8);
+
+    stepCtx_[f * 2] = {this, f, -1};
+    stepCtx_[f * 2 + 1] = {this, f, +1};
+    makeStepBtn("-", 104, y, &stepCtx_[f * 2]);
+    setupLbl_[f] = lv_label_create(root_);
+    lv_obj_set_width(setupLbl_[f], 40);
+    lv_obj_set_style_text_align(setupLbl_[f], LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(setupLbl_[f], LV_ALIGN_TOP_LEFT, 146, y + 8);
+    makeStepBtn("+", 192, y, &stepCtx_[f * 2 + 1]);
+    y += 36;
+  }
+  refreshSetupLabels();
+
+  struct PresetBtn {
     const Preset& p;
     const char* name;
     lv_event_cb_t cb;
   };
-  const Row rows[] = {{kEasy, "Fácil - 9x9, 18 minas", onEasy},
-                      {kHard, "Difícil - 9x13, 33 minas", onHard}};
-  for (const Row& row : rows) {
+  const PresetBtn pb[] = {{kEasy, "Fácil", onPresetEasy},
+                          {kHard, "Difícil", onPresetHard}};
+  for (uint8_t i = 0; i < 2; ++i) {
     lv_obj_t* btn = lv_btn_create(root_);
-    lv_obj_set_size(btn, 204, 62);
-    lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, y);
-    y += 76;
-    char best[32];
-    const uint32_t b = store_->getU32(row.p.bestKey, 0);
-    if (b != 0) {
-      char t[16];
-      fmtTime(t, sizeof t, b);
-      snprintf(best, sizeof best, "melhor: %s", t);
-    } else {
-      snprintf(best, sizeof best, "melhor: -");
-    }
+    lv_obj_set_size(btn, 108, 52);
+    lv_obj_align(btn, LV_ALIGN_TOP_LEFT, 8 + i * 116, y);
+    char best[16] = "-";
+    const uint32_t b = store_->getU32(pb[i].p.bestKey, 0);
+    if (b != 0) fmtTime(best, sizeof best, b);
     lv_obj_t* l = lv_label_create(btn);
-    lv_label_set_text_fmt(l, "%s\n%s", row.name, best);
+    lv_label_set_text_fmt(l, "%s\nmelhor: %s", pb[i].name, best);
     lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(l);
-    lv_obj_add_event_cb(btn, row.cb, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(btn, pb[i].cb, LV_EVENT_CLICKED, this);
   }
+  y += 60;
+
+  lv_obj_t* play = lv_btn_create(root_);
+  lv_obj_set_size(play, 224, 40);
+  lv_obj_align(play, LV_ALIGN_TOP_MID, 0, y);
+  lv_obj_t* pl = lv_label_create(play);
+  lv_label_set_text(pl, "Jogar");
+  lv_obj_center(pl);
+  lv_obj_add_event_cb(play, onPlay, LV_EVENT_CLICKED, this);
+}
+
+void MinesweeperApp::loadSetup() {
+  setupRows_ = static_cast<uint8_t>(
+      clampU(store_->getU32("mines_cfg_rows", kEasy.rows), kMinRC, kMaxRows));
+  setupCols_ = static_cast<uint8_t>(
+      clampU(store_->getU32("mines_cfg_cols", kEasy.cols), kMinRC, kMaxCols));
+  setupMines_ = clampU(store_->getU32("mines_cfg_mines", kEasy.mines), 1,
+                       maxMines(setupRows_, setupCols_));
+}
+
+void MinesweeperApp::stepSetup(uint8_t field, int8_t delta) {
+  if (field == 0)
+    setupRows_ = static_cast<uint8_t>(
+        clampU(setupRows_ + delta, kMinRC, kMaxRows));
+  else if (field == 1)
+    setupCols_ = static_cast<uint8_t>(
+        clampU(setupCols_ + delta, kMinRC, kMaxCols));
+  else
+    setupMines_ = clampU(setupMines_ + delta, 1, 0xFFFF);
+  // Any change can shrink the mines ceiling; keep the config always valid.
+  setupMines_ = clampU(setupMines_, 1, maxMines(setupRows_, setupCols_));
+  refreshSetupLabels();
+}
+
+void MinesweeperApp::applyPreset(uint8_t rows, uint8_t cols, uint16_t mines) {
+  setupRows_ = rows;
+  setupCols_ = cols;
+  setupMines_ = mines;
+  refreshSetupLabels();
+}
+
+void MinesweeperApp::refreshSetupLabels() {
+  if (setupLbl_[0] == nullptr) return;
+  lv_label_set_text_fmt(setupLbl_[0], "%u", setupRows_);
+  lv_label_set_text_fmt(setupLbl_[1], "%u", setupCols_);
+  lv_label_set_text_fmt(setupLbl_[2], "%u", setupMines_);
+}
+
+lv_obj_t* MinesweeperApp::makeStepBtn(const char* txt, lv_coord_t x,
+                                      lv_coord_t y, StepCtx* ctx) {
+  lv_obj_t* btn = lv_btn_create(root_);
+  lv_obj_set_size(btn, 36, 32);
+  lv_obj_align(btn, LV_ALIGN_TOP_LEFT, x, y);
+  lv_obj_t* l = lv_label_create(btn);
+  lv_label_set_text(l, txt);
+  lv_obj_center(l);
+  // SHORT_CLICKED + LONG_PRESSED_REPEAT = tap steps once, holding repeats
+  // (plain CLICKED would add a spurious step on release after a hold).
+  lv_obj_add_event_cb(btn, onStep, LV_EVENT_SHORT_CLICKED, ctx);
+  lv_obj_add_event_cb(btn, onStep, LV_EVENT_LONG_PRESSED_REPEAT, ctx);
+  return btn;
 }
 
 void MinesweeperApp::newGame(uint8_t rows, uint8_t cols, uint16_t mines) {
@@ -162,6 +248,7 @@ void MinesweeperApp::newGame(uint8_t rows, uint8_t cols, uint16_t mines) {
 void MinesweeperApp::showBoard() {
   screen_ = Screen::Board;
   lv_obj_clean(root_);
+  setupLbl_[0] = setupLbl_[1] = setupLbl_[2] = nullptr;
 
   minesLbl_ = lv_label_create(root_);
   lv_obj_align(minesLbl_, LV_ALIGN_TOP_LEFT, 8, 8);
@@ -265,13 +352,24 @@ void MinesweeperApp::endGame() {
   lv_obj_center(l);
 }
 
-void MinesweeperApp::onEasy(lv_event_t* e) {
-  static_cast<MinesweeperApp*>(lv_event_get_user_data(e))
-      ->newGame(kEasy.rows, kEasy.cols, kEasy.mines);
+void MinesweeperApp::onStep(lv_event_t* e) {
+  auto* ctx = static_cast<StepCtx*>(lv_event_get_user_data(e));
+  ctx->app->stepSetup(ctx->field, ctx->delta);
 }
-void MinesweeperApp::onHard(lv_event_t* e) {
+void MinesweeperApp::onPresetEasy(lv_event_t* e) {
   static_cast<MinesweeperApp*>(lv_event_get_user_data(e))
-      ->newGame(kHard.rows, kHard.cols, kHard.mines);
+      ->applyPreset(kEasy.rows, kEasy.cols, kEasy.mines);
+}
+void MinesweeperApp::onPresetHard(lv_event_t* e) {
+  static_cast<MinesweeperApp*>(lv_event_get_user_data(e))
+      ->applyPreset(kHard.rows, kHard.cols, kHard.mines);
+}
+void MinesweeperApp::onPlay(lv_event_t* e) {
+  auto* self = static_cast<MinesweeperApp*>(lv_event_get_user_data(e));
+  self->store_->setU32("mines_cfg_rows", self->setupRows_);
+  self->store_->setU32("mines_cfg_cols", self->setupCols_);
+  self->store_->setU32("mines_cfg_mines", self->setupMines_);
+  self->newGame(self->setupRows_, self->setupCols_, self->setupMines_);
 }
 void MinesweeperApp::onResume(lv_event_t* e) {
   static_cast<MinesweeperApp*>(lv_event_get_user_data(e))->showBoard();
