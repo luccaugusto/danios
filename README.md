@@ -127,43 +127,6 @@ Design is approved and hardware is in hand. Pick up at either:
 ---
 
 ## TODO
-
-- [x] draw the images for weather app — 16 sprites, `.bin` under `S:/art/weather/`
-      (paths from `lib/weather_model/weather_model.cpp`, sizes from `WeatherApp.cpp`).
-      PNGs live in `assets/art/weather/`; convert with
-      `assets/icons/svg_to_lvgl_bin.py <png> sd/art/weather/<name>.bin`
-      (character/outfit/overlay sprites: add `--size 188x222` — 95% of the
-      PNG canvas), then copy `sd/` onto the card.
-  - Character, outfits, and overlays share one 198×234 canvas, exported
-    pre-positioned relative to the character — the app stacks them at the
-    same anchor, no offsets in code. On-device they render at 188×222.
-  - Character (198×234):
-    - [x] `gata-coco.bin` — base sprite, always shown
-  - Outfits (198×234), one per temperature band:
-    - [x] `outfit_freezing.bin` — < 0 °C (heavy coat, hat, gloves)
-    - [x] `outfit_cold.bin` — 0–14 °C (jacket)
-    - [x] `outfit_mild.bin` — 15–23 °C (long sleeves)
-    - [x] `outfit_warm.bin` — 24–27 °C (t-shirt)
-    - [x] `outfit_hot.bin` — ≥ 28 °C (shorts / tank top)
-  - Overlays (198×234):
-    - [x] `ov_sunglasses.bin` — clear + day (except mild)
-    - [x] `ov_umbrella.bin` — rain (except mild), storm
-    - [x] `ov_scarf.bin` — snow
-    - [x] `ov_hat.bin` — mild + (clear day or rain)
-  - Backgrounds (240×288):
-    - [x] `bg_clear.bin`
-    - [x] `bg_clear_night.bin`
-    - [x] `bg_cloudy.bin`
-    - [x] `bg_fog.bin`
-    - [x] `bg_rain.bin`
-    - [x] `bg_snow.bin`
-    - [x] `bg_storm.bin`
-- [x] make a boot screen like the wifi connecting screen we have today but that
-      shows always, wifi connection happens at this step — `assets/art/boot-logo.png`
-      converted to `sd/art/boot-logo.bin`, shown ≥2 s in `main.cpp` with the
-      "Conectando" label in the strip below it while WiFi comes up
-- [x] make a cristal ball svg for the oracle app — `assets/icons/oracle.svg`,
-      converted to `sd/art/icons/oracle.bin` and wired in `app_catalog.h`
 - [ ] draw the images for the pet app — 10 sprites, `.bin` under `S:/art/pet/`
       (paths from `lib/pet_model/pet_model.cpp`, render sizes from
       `src/apps/pet/PetApp.cpp`). Same workflow as weather:
@@ -183,8 +146,6 @@ Design is approved and hardware is in hand. Pick up at either:
     - [ ] `food_snack.bin`
     - [ ] `food_meal.bin`
     - [ ] `food_treat.bin`
-  - Launcher icon (wired in `app_catalog.h`):
-    - [x] `sd/art/icons/pet.bin` (`assets/icons/pet.svg`)
 - [ ] rename pet app from bichinho to Pet
 - [ ] draw the images for the pomodoro app — 2 sprites. Same workflow
       as weather/pet: `assets/icons/svg_to_lvgl_bin.py <png> sd/art/pomo/<name>.bin`,
@@ -193,5 +154,4 @@ Design is approved and hardware is in hand. Pick up at either:
   - Status sprites (rendered 120×120 in `src/apps/pomodoro/PomodoroApp.cpp`):
     - [ ] `sd/art/pomo/work.bin` — work-phase sprite
     - [ ] `sd/art/pomo/break.bin` — break-phase sprite
-  - Launcher icon (wired in `app_catalog.h`):
-    - [x] `sd/art/icons/pomodoro.bin` — tomato (`assets/icons/pomodoro.svg`, noto-style from SVG Repo)
+- [ ] make app fonts a little smaller so they don't overflow
