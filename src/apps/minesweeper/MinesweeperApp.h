@@ -61,6 +61,9 @@ class MinesweeperApp : public App {
   void refreshSetupLabels();
   lv_obj_t* makeStepBtn(const char* txt, lv_coord_t x, lv_coord_t y,
                         StepCtx* ctx);
+  void showStartLandscape();  // two-column layout for the 320x208 container
+  lv_obj_t* makeTextBtn(const char* text, lv_coord_t x, lv_coord_t y,
+                        lv_coord_t w, lv_coord_t h, lv_event_cb_t cb);
 
   static void onStep(lv_event_t* e);
   static void onPresetEasy(lv_event_t* e);

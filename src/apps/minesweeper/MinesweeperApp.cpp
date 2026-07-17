@@ -10,17 +10,31 @@
 
 namespace {
 
+#include "core/Layout.h"
+
 struct Preset {
   uint8_t rows, cols;
   uint16_t mines;
   const char* bestKey;
 };
-constexpr Preset kEasy{9, 9, 18, "mines_best_easy"};
-constexpr Preset kHard{13, 9, 33, "mines_best_hard"};
 
-constexpr lv_coord_t kHudH = 32;
+// Landscape boards are wide-short (208 px tall app area, spec 2026-07-17):
+// 6 rows x 12 cols max keeps 26 px cells. Mine ratios track the portrait
+// presets (Fácil ~22%, Difícil ~28%). Separate best-time keys — a 6x9 Fácil
+// is not the same game as the portrait 9x9, so times don't compare.
+constexpr Preset kEasy = layout::kLandscape
+                             ? Preset{6, 9, 12, "mines_best_easy_l"}
+                             : Preset{9, 9, 18, "mines_best_easy"};
+constexpr Preset kHard = layout::kLandscape
+                             ? Preset{6, 12, 20, "mines_best_hard_l"}
+                             : Preset{13, 9, 33, "mines_best_hard"};
 
-constexpr uint8_t kMinRC = 5, kMaxRows = 14, kMaxCols = 12;
+// Board HUD: one row above the grid; slimmed in landscape to buy grid height.
+constexpr lv_coord_t kHudH = layout::kLandscape ? 28 : 32;
+
+constexpr uint8_t kMinRC = 5;
+constexpr uint8_t kMaxRows = layout::kLandscape ? 6 : 14;
+constexpr uint8_t kMaxCols = 12;
 
 // 35% cap: keeps first-tap safety satisfiable (5x5: 8 <= 25-9) and admits
 // both presets (18/81, 33/117).
@@ -145,6 +159,11 @@ void MinesweeperApp::showStart() {
   grid_ = minesLbl_ = timeLbl_ = flagBtn_ = nullptr;
   loadSetup();
 
+  if (layout::kLandscape) {
+    showStartLandscape();
+    return;
+  }
+
   lv_obj_t* title = lv_label_create(root_);
   lv_label_set_text(title, "Minas");
   lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 4);
@@ -212,6 +231,63 @@ void MinesweeperApp::showStart() {
   lv_obj_add_event_cb(play, onPlay, LV_EVENT_CLICKED, this);
 }
 
+// Landscape start screen: steppers in the left column (labels above the
+// -/value/+ row — the portrait single-row arrangement is 192 px wide and
+// doesn't fit a 160 px column), actions stacked in the right column.
+void MinesweeperApp::showStartLandscape() {
+  lv_obj_t* title = lv_label_create(root_);
+  lv_label_set_text(title, "Minas");
+  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 4);
+
+  // Left column: x 8..144.
+  static const char* kNames[] = {"Linhas", "Colunas", "Minas"};
+  lv_coord_t y = 26;
+  for (uint8_t f = 0; f < 3; ++f) {
+    lv_obj_t* name = lv_label_create(root_);
+    lv_label_set_text(name, kNames[f]);
+    lv_obj_align(name, LV_ALIGN_TOP_LEFT, 8, y);
+
+    stepCtx_[f * 2] = {this, f, -1};
+    stepCtx_[f * 2 + 1] = {this, f, +1};
+    makeStepBtn("-", 8, y + 16, &stepCtx_[f * 2]);
+    setupLbl_[f] = lv_label_create(root_);
+    lv_obj_set_width(setupLbl_[f], 44);
+    lv_obj_set_style_text_align(setupLbl_[f], LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(setupLbl_[f], LV_ALIGN_TOP_LEFT, 50, y + 24);
+    makeStepBtn("+", 100, y + 16, &stepCtx_[f * 2 + 1]);
+    y += 52;
+  }
+  refreshSetupLabels();
+
+  // Right column: x 168..312, actions stacked.
+  y = 26;
+  if (resumable()) {
+    char t[16];
+    fmtTime(t, sizeof t, accumMs_ / 1000);
+    char label[32];
+    snprintf(label, sizeof label, "Continuar (%s)", t);
+    makeTextBtn(label, 168, y, 144, 34, onResume);
+    y += 38;
+  }
+  struct PresetBtn {
+    const Preset& p;
+    const char* name;
+    lv_event_cb_t cb;
+  };
+  const PresetBtn pb[] = {{kEasy, "Fácil", onPresetEasy},
+                          {kHard, "Difícil", onPresetHard}};
+  for (const PresetBtn& b : pb) {
+    char best[16] = "-";
+    const uint32_t bt = store_->getU32(b.p.bestKey, 0);
+    if (bt != 0) fmtTime(best, sizeof best, bt);
+    char label[48];
+    snprintf(label, sizeof label, "%s\nmelhor: %s", b.name, best);
+    makeTextBtn(label, 168, y, 144, 40, b.cb);
+    y += 44;
+  }
+  makeTextBtn("Jogar", 168, y, 144, 36, onPlay);
+}
+
 void MinesweeperApp::loadSetup() {
   setupRows_ = static_cast<uint8_t>(
       clampU(store_->getU32("mines_cfg_rows", kEasy.rows), kMinRC, kMaxRows));
@@ -264,6 +340,20 @@ lv_obj_t* MinesweeperApp::makeStepBtn(const char* txt, lv_coord_t x,
   return btn;
 }
 
+lv_obj_t* MinesweeperApp::makeTextBtn(const char* text, lv_coord_t x,
+                                      lv_coord_t y, lv_coord_t w, lv_coord_t h,
+                                      lv_event_cb_t cb) {
+  lv_obj_t* btn = lv_btn_create(root_);
+  lv_obj_set_size(btn, w, h);
+  lv_obj_align(btn, LV_ALIGN_TOP_LEFT, x, y);
+  lv_obj_t* l = lv_label_create(btn);
+  lv_label_set_text(l, text);
+  lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_center(l);
+  lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, this);
+  return btn;
+}
+
 void MinesweeperApp::newGame(uint8_t rows, uint8_t cols, uint16_t mines) {
   lv_obj_update_layout(root_);
   const lv_coord_t w = lv_obj_get_content_width(root_);
@@ -294,7 +384,7 @@ void MinesweeperApp::showBoard() {
   flagBtn_ = lv_btn_create(root_);
   lv_obj_add_flag(flagBtn_, LV_OBJ_FLAG_CHECKABLE);
   lv_obj_set_size(flagBtn_, 90, 26);
-  lv_obj_align(flagBtn_, LV_ALIGN_TOP_RIGHT, -4, 3);
+  lv_obj_align(flagBtn_, LV_ALIGN_TOP_RIGHT, -4, layout::kLandscape ? 1 : 3);
   lv_obj_t* fl = lv_label_create(flagBtn_);
   lv_label_set_text(fl, "Bandeira");
   lv_obj_center(fl);
