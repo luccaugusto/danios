@@ -7,6 +7,7 @@
 #include <weather_model.h>
 
 #include "apps/weather/WeatherFetch.h"
+#include "core/Layout.h"
 #include "services/StorageService.h"
 #include "services/WiFiService.h"
 
@@ -108,6 +109,11 @@ void WeatherApp::render(const ForecastWx& f, bool stale) {
   lv_obj_clean(root_);
   statusLbl_ = nullptr;
 
+  if (layout::kLandscape) {
+    renderLandscape(f, stale);
+    return;
+  }
+
   const bool useF = store_->getBool("units.f", false);
   const Condition cond = conditionFromWmo(f.current.wmoCode);
   const ArtSlots art =
@@ -177,6 +183,90 @@ void WeatherApp::render(const ForecastWx& f, bool stale) {
   if (stale) setStatus(LV_SYMBOL_WARNING " desatualizado");
 }
 
+// Landscape (spec 2026-07-17): split screen. Left half is a pure art panel —
+// the portrait-drawn art center-cropped/zoomed, no text over it. Right half
+// is a clean data panel on the app background.
+void WeatherApp::renderLandscape(const ForecastWx& f, bool stale) {
+  const bool useF = store_->getBool("units.f", false);
+  const Condition cond = conditionFromWmo(f.current.wmoCode);
+  const ArtSlots art =
+      artSlots(tempBand(f.current.tempC), cond, f.current.isDay);
+
+  constexpr lv_coord_t kArtW = layout::kAppW / 2;  // 160
+  constexpr lv_coord_t kArtH = layout::kAppH;      // 208
+
+  // Art panel clips its children, so the oversized portrait art is
+  // center-cropped by parking it at negative offsets.
+  lv_obj_t* artPanel = lv_obj_create(root_);
+  lv_obj_remove_style_all(artPanel);
+  lv_obj_set_pos(artPanel, 0, 0);
+  lv_obj_set_size(artPanel, kArtW, kArtH);
+  lv_obj_clear_flag(artPanel, LV_OBJ_FLAG_SCROLLABLE);
+
+  lv_obj_t* bg = makeArtSlot(artPanel, *storage_, art.background, 240, 288,
+                             lv_color_white());
+  lv_obj_set_pos(bg, (kArtW - 240) / 2, (kArtH - 288) / 2);  // center-crop
+  lv_obj_set_style_radius(bg, 0, 0);
+
+  // Character stack (188x222 sources): zoomed to the panel width
+  // (256 * 160 / 188 ≈ 218). lv_img zoom scales around the centre pivot and
+  // keeps the 188x222 layout box, so BOTTOM_MID plus the half-height delta
+  // (222 - 189) / 2 ≈ 16 rests her feet on the panel's bottom edge.
+  constexpr uint16_t kZoom = 218;
+  const struct {
+    const char* path;
+    lv_color_t fallback;
+    bool hideIfMissing;
+  } kLayers[] = {
+      {kCharacterPath, lv_palette_main(LV_PALETTE_GREY), false},
+      {art.outfit, lv_palette_main(LV_PALETTE_GREY), true},
+      {art.overlay, lv_palette_main(LV_PALETTE_ORANGE), true},
+  };
+  for (const auto& layer : kLayers) {
+    lv_obj_t* img = makeArtSlot(artPanel, *storage_, layer.path, 188, 222,
+                                layer.fallback, layer.hideIfMissing);
+    lv_img_set_zoom(img, kZoom);
+    lv_obj_align(img, LV_ALIGN_BOTTOM_MID, 0, 16);
+  }
+
+  // Data panel: flex column of plain labels on the dark app background —
+  // no white readout pills needed, nothing sits over art here.
+  lv_obj_t* dataPanel = lv_obj_create(root_);
+  lv_obj_remove_style_all(dataPanel);
+  lv_obj_set_pos(dataPanel, kArtW, 0);
+  lv_obj_set_size(dataPanel, layout::kAppW - kArtW, kArtH);
+  lv_obj_set_style_pad_all(dataPanel, 8, 0);
+  lv_obj_set_style_pad_row(dataPanel, 6, 0);
+  lv_obj_set_flex_flow(dataPanel, LV_FLEX_FLOW_COLUMN);
+  lv_obj_clear_flag(dataPanel, LV_OBJ_FLAG_SCROLLABLE);
+
+  auto addLine = [dataPanel](const char* txt) {
+    lv_obj_t* l = lv_label_create(dataPanel);
+    lv_label_set_text(l, txt);
+    return l;
+  };
+
+  char buf[80];
+  snprintf(buf, sizeof buf, "%d°%c  %s", shownTemp(f.current.tempC, useF),
+           useF ? 'F' : 'C', conditionLabelPt(cond));
+  addLine(buf);
+  addLine(store_->getString("loc.city", "").c_str());
+  if (f.dayCount > 0) {
+    snprintf(buf, sizeof buf, LV_SYMBOL_UP "%d°  " LV_SYMBOL_DOWN "%d°",
+             shownTemp(f.days[0].tmaxC, useF), shownTemp(f.days[0].tminC, useF));
+    addLine(buf);
+  }
+  addLine("");  // spacer row between readings and the forecast list
+  for (int i = 0; i < f.dayCount; ++i) {
+    snprintf(buf, sizeof buf, "%s: %s %d°/%d°", kDayNames[i],
+             conditionLabelPt(conditionFromWmo(f.days[i].wmoCode)),
+             shownTemp(f.days[i].tmaxC, useF), shownTemp(f.days[i].tminC, useF));
+    addLine(buf);
+  }
+
+  if (stale) setStatus(LV_SYMBOL_WARNING " desatualizado");
+}
+
 void WeatherApp::renderEmpty() {
   lv_obj_clean(root_);
   statusLbl_ = nullptr;
@@ -184,7 +274,7 @@ void WeatherApp::renderEmpty() {
   lv_label_set_text(lbl,
                     "Não consegui ver o céu agora.\n\n"
                     "Verifique o WiFi em Config.");
-  lv_obj_set_width(lbl, 224);
+  lv_obj_set_width(lbl, layout::kAppW - 16);
   lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
   lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_center(lbl);
@@ -194,8 +284,12 @@ void WeatherApp::setStatus(const char* msg) {
   if (root_ == nullptr) return;
   if (statusLbl_ == nullptr) {
     statusLbl_ = makeReadout(root_);
-    // Below the hi/lo readout, which owns the top-right corner.
-    lv_obj_align(statusLbl_, LV_ALIGN_TOP_RIGHT, -8, 30);
+    // Portrait: below the hi/lo readout (top-right corner). Landscape: the
+    // data panel's bottom-right, which the forecast list never reaches.
+    if (layout::kLandscape)
+      lv_obj_align(statusLbl_, LV_ALIGN_BOTTOM_RIGHT, -8, -8);
+    else
+      lv_obj_align(statusLbl_, LV_ALIGN_TOP_RIGHT, -8, 30);
   }
   lv_label_set_text(statusLbl_, msg);
 }
