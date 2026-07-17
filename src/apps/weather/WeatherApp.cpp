@@ -225,6 +225,7 @@ void WeatherApp::renderLandscape(const ForecastWx& f, bool stale) {
   for (const auto& layer : kLayers) {
     lv_obj_t* img = makeArtSlot(artPanel, *storage_, layer.path, 188, 222,
                                 layer.fallback, layer.hideIfMissing);
+    lv_img_set_pivot(img, 188 / 2, 222 / 2);  // placeholder boxes never get a src, which is what normally centres the pivot
     lv_img_set_zoom(img, kZoom);
     lv_obj_align(img, LV_ALIGN_BOTTOM_MID, 0, 16);
   }
