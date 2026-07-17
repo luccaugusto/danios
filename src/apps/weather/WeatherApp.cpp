@@ -208,11 +208,12 @@ void WeatherApp::renderLandscape(const ForecastWx& f, bool stale) {
   lv_obj_set_pos(bg, (kArtW - 240) / 2, (kArtH - 288) / 2);  // center-crop
   lv_obj_set_style_radius(bg, 0, 0);
 
-  // Character stack (188x222 sources): zoomed to the panel width
-  // (256 * 160 / 188 ≈ 218). lv_img zoom scales around the centre pivot and
-  // keeps the 188x222 layout box, so BOTTOM_MID plus the half-height delta
-  // (222 - 189) / 2 ≈ 16 rests her feet on the panel's bottom edge.
-  constexpr uint16_t kZoom = 218;
+  // LVGL 8 can't apply transforms (lv_img_set_zoom) to file-backed image
+  // sources: the FS decoder reads the file line-by-line, but a transformed
+  // draw needs the whole image available at once, so a zoomed file-backed
+  // image silently renders nothing. The 188x222 art draws full-size instead;
+  // the clipping art panel (160 wide x 208 tall) crops ~14 px off each side
+  // and ~14 px off the top — an acceptable canvas margin for the spike.
   const struct {
     const char* path;
     lv_color_t fallback;
@@ -225,9 +226,7 @@ void WeatherApp::renderLandscape(const ForecastWx& f, bool stale) {
   for (const auto& layer : kLayers) {
     lv_obj_t* img = makeArtSlot(artPanel, *storage_, layer.path, 188, 222,
                                 layer.fallback, layer.hideIfMissing);
-    lv_img_set_pivot(img, 188 / 2, 222 / 2);  // placeholder boxes never get a src, which is what normally centres the pivot
-    lv_img_set_zoom(img, kZoom);
-    lv_obj_align(img, LV_ALIGN_BOTTOM_MID, 0, 16);
+    lv_obj_align(img, LV_ALIGN_BOTTOM_MID, 0, 0);
   }
 
   // Data panel: flex column of plain labels on the dark app background —
@@ -237,7 +236,7 @@ void WeatherApp::renderLandscape(const ForecastWx& f, bool stale) {
   lv_obj_set_pos(dataPanel, kArtW, 0);
   lv_obj_set_size(dataPanel, layout::kAppW - kArtW, kArtH);
   lv_obj_set_style_pad_all(dataPanel, 8, 0);
-  lv_obj_set_style_pad_row(dataPanel, 6, 0);
+  lv_obj_set_style_pad_row(dataPanel, 4, 0);
   lv_obj_set_flex_flow(dataPanel, LV_FLEX_FLOW_COLUMN);
   lv_obj_clear_flag(dataPanel, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -252,16 +251,11 @@ void WeatherApp::renderLandscape(const ForecastWx& f, bool stale) {
            useF ? 'F' : 'C', conditionLabelPt(cond));
   addLine(buf);
   addLine(store_->getString("loc.city", "").c_str());
-  if (f.dayCount > 0) {
-    snprintf(buf, sizeof buf, LV_SYMBOL_UP "%d°  " LV_SYMBOL_DOWN "%d°",
-             shownTemp(f.days[0].tmaxC, useF), shownTemp(f.days[0].tminC, useF));
-    addLine(buf);
-  }
   addLine("");  // spacer row between readings and the forecast list
   for (int i = 0; i < f.dayCount; ++i) {
-    snprintf(buf, sizeof buf, "%s: %s %d°/%d°", kDayNames[i],
-             conditionLabelPt(conditionFromWmo(f.days[i].wmoCode)),
-             shownTemp(f.days[i].tmaxC, useF), shownTemp(f.days[i].tminC, useF));
+    snprintf(buf, sizeof buf, "%s\n" LV_SYMBOL_UP "%d°  " LV_SYMBOL_DOWN "%d°",
+             kDayNames[i], shownTemp(f.days[i].tmaxC, useF),
+             shownTemp(f.days[i].tminC, useF));
     addLine(buf);
   }
 
