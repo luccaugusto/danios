@@ -1,9 +1,11 @@
 #include "core/StatusBar.h"
 
+#include "core/Layout.h"
+
 void StatusBar::build(lv_obj_t* parent) {
   bar_ = lv_obj_create(parent);
   lv_obj_remove_style_all(bar_);
-  lv_obj_set_size(bar_, 240, kHeight);
+  lv_obj_set_size(bar_, layout::kScreenW, kHeight);
   lv_obj_set_pos(bar_, 0, 0);
   lv_obj_set_style_bg_color(bar_, lv_color_hex(0x1B2026), 0);
   lv_obj_set_style_bg_opa(bar_, LV_OPA_COVER, 0);
