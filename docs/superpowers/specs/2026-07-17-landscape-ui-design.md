@@ -7,7 +7,8 @@
 ## Goal
 
 Evaluate the device in landscape orientation (rotated 90° so the USB-C port
-sits on the **right** instead of below) and decide whether landscape should
+sits on the **left** instead of below — revised from "right" during the
+Task 1 hardware probe) and decide whether landscape should
 become the permanent orientation. Both orientations stay buildable via a
 compile-time flag so portrait/landscape builds can be flashed A/B on the same
 device.
@@ -52,24 +53,32 @@ even if landscape loses).
 
 ## Step 0 — hardware probe (before any UI work)
 
-A throwaway flash that:
+**COMPLETED 2026-07-17. Measured facts:**
 
-1. Draws labeled text/arrows at candidate landscape rotations — try **6**
-   first (the 90° neighbor of portrait's rotation 7 within LovyanGFX's
-   mirrored 4–7 family), fall back to **4** — to pin the exact rotation
-   value with USB-C right and non-mirrored text.
-2. Draws touch-corner markers to check whether the rotation-7 calibration
-   array (`DisplayService::begin()`) still lands corners correctly after
-   the rotation change. If not, re-run `calibrateTouch` once at the
-   landscape rotation and store a second, flag-selected 8-value array
-   (per docs/DISPLAY.md: never hand-edit or add manual swap/mirror code).
+- **Landscape rotation = 6** — readable, non-mirrored text with the USB-C
+  port on the **left** (the user revised the goal from USB-right to
+  USB-left mid-probe; rotation 4 is the same image rotated 180°, USB-right).
+- **Touch calibration does NOT survive the rotation change**, and a plain
+  `calibrateTouch` re-capture at rotation 6 does not fix it either: the
+  capture internally cancels rotation to 0, and this clone panel's hardware
+  mirror makes LovyanGFX's `convertRawXY` apply the wrong mirror-family
+  transform at rotation 6 (an x-flip where the panel needs a y-flip),
+  yielding touches point-reflected 180°. Verified with per-tap raw/converted
+  serial logging: the four corners came back exactly diagonal-swapped.
+- **Fix (data layer, verified on device):** keep the measured corner data
+  but reorder the pairs 180° (TL↔BR, BL↔TR) so the solved affine bakes in
+  the reflection. Landscape array (measured at capture, then reordered):
+  `{652, 3313, 762, 181, 3841, 3586, 3837, 285}`. Portrait rotation-7
+  array is untouched. No manual swap/mirror code in the input path — the
+  correction lives in the calibration data, selected by `layout::kLandscape`.
+  ⚠️ If this array is ever re-captured, the raw `calibrateTouch` output must
+  be reordered the same way before use.
 
-UI work starts only after the rotation value and calibration story are
-pinned. The probe is throwaway code — not merged.
+The probe was throwaway code — not merged.
 
 ## Display service
 
-- `setRotation(layout::kLandscape ? <probed value> : 7)`.
+- `setRotation(layout::kLandscape ? 6 : 7)` (probed).
 - `kHorRes/kVerRes` come from `layout::kScreenW/kScreenH`.
 - Draw buffer keeps the same ~14.4 KB budget: same pixel count,
   `kScreenW` wide × correspondingly fewer lines.
