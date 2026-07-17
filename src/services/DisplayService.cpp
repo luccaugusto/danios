@@ -3,16 +3,26 @@
 #include <Arduino.h>
 #include <esp_heap_caps.h>
 
+#include "core/Layout.h"
+
 void DisplayService::begin() {
   tft_.init();
-  tft_.setRotation(7);    // portrait, USB-C down (240x320) — docs/DISPLAY.md
+  // Portrait = rotation 7, USB-C down. Landscape = rotation 6, USB-C left —
+  // pinned empirically by the Task 1 hardware probe (docs/DISPLAY.md).
+  tft_.setRotation(layout::kLandscape ? 6 : 7);
   // Touch calibration measured on THIS unit with LovyanGFX calibrateTouch at
   // rotation 7 (docs/DISPLAY.md). Supersedes the earlier hand-measured min/max
   // box constants, which mis-scaled the horizontal axis so right-of-centre keys
   // registered one key too far right. 8 values = raw ADC at the 4 screen
   // corners; setTouchCalibrate builds the affine and MUST run after setRotation.
-  static uint16_t kTouchCal[8] = {3830, 319, 3876, 3631, 724, 181, 521, 3482};
-  tft_.setTouchCalibrate(kTouchCal);
+  // The landscape array is the rotation-6 calibrateTouch capture with its
+  // corner pairs reordered 180° (TL<->BR, BL<->TR): this clone's hardware
+  // mirror makes convertRawXY apply the wrong mirror-family transform at
+  // rotation 6, and the reorder bakes the correction into the affine
+  // (docs spec 2026-07-17). Re-captures must be reordered the same way.
+  static uint16_t kTouchCalPortrait[8] = {3830, 319, 3876, 3631, 724, 181, 521, 3482};
+  static uint16_t kTouchCalLandscape[8] = {652, 3313, 762, 181, 3841, 3586, 3837, 285};
+  tft_.setTouchCalibrate(layout::kLandscape ? kTouchCalLandscape : kTouchCalPortrait);
   tft_.setBrightness(160);
 
   lv_init();
