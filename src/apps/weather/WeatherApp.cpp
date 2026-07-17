@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include <cmath>
+#include <cstring>
 
 #include <weather_model.h>
 
@@ -192,6 +193,22 @@ void WeatherApp::renderLandscape(const ForecastWx& f, bool stale) {
   const ArtSlots art =
       artSlots(tempBand(f.current.tempC), cond, f.current.isDay);
 
+  // Maps "S:/art/weather/<file>.bin" -> "S:/art/weather/ls/<file>.bin" by
+  // inserting "ls/" after the final '/', writing into a caller-provided
+  // buffer. Passes nullptr through unchanged (art.outfit/art.overlay can be
+  // nullptr — makeArtSlot treats nullptr as "no slot").
+  auto lsPath = [](const char* path, char* buf, size_t bufSize) -> const char* {
+    if (path == nullptr) return nullptr;
+    const char* slash = strrchr(path, '/');
+    if (slash == nullptr) {
+      snprintf(buf, bufSize, "%s", path);
+      return buf;
+    }
+    const int prefixLen = static_cast<int>(slash - path) + 1;  // include '/'
+    snprintf(buf, bufSize, "%.*sls/%s", prefixLen, path, slash + 1);
+    return buf;
+  };
+
   constexpr lv_coord_t kArtW = layout::kAppW / 2;  // 160
   constexpr lv_coord_t kArtH = layout::kAppH;      // 208
 
@@ -203,17 +220,19 @@ void WeatherApp::renderLandscape(const ForecastWx& f, bool stale) {
   lv_obj_set_size(artPanel, kArtW, kArtH);
   lv_obj_clear_flag(artPanel, LV_OBJ_FLAG_SCROLLABLE);
 
-  lv_obj_t* bg = makeArtSlot(artPanel, *storage_, art.background, 240, 288,
-                             lv_color_white());
-  lv_obj_set_pos(bg, (kArtW - 240) / 2, (kArtH - 288) / 2);  // center-crop
+  char bgBuf[64];
+  lv_obj_t* bg = makeArtSlot(artPanel, *storage_,
+                             lsPath(art.background, bgBuf, sizeof bgBuf), 216,
+                             259, lv_color_white());
+  lv_obj_set_pos(bg, (kArtW - 216) / 2, (kArtH - 259) / 2);  // center-crop
   lv_obj_set_style_radius(bg, 0, 0);
 
-  // LVGL 8 can't apply transforms (lv_img_set_zoom) to file-backed image
-  // sources: the FS decoder reads the file line-by-line, but a transformed
-  // draw needs the whole image available at once, so a zoomed file-backed
-  // image silently renders nothing. The 188x222 art draws full-size instead;
-  // the clipping art panel (160 wide x 208 tall) crops ~14 px off each side
-  // and ~14 px off the top — an acceptable canvas margin for the spike.
+  // Art is pre-scaled to 90% for landscape (ls/ variants) because LVGL 8
+  // can't zoom file-backed images: the FS decoder reads the file
+  // line-by-line, but a transformed draw needs the whole image available at
+  // once, so a zoomed file-backed image silently renders nothing. The
+  // 169x200 art (90% of the 188x222 portrait render) fits the 208-high
+  // panel with ~5 px side clip.
   const struct {
     const char* path;
     lv_color_t fallback;
@@ -224,7 +243,9 @@ void WeatherApp::renderLandscape(const ForecastWx& f, bool stale) {
       {art.overlay, lv_palette_main(LV_PALETTE_ORANGE), true},
   };
   for (const auto& layer : kLayers) {
-    lv_obj_t* img = makeArtSlot(artPanel, *storage_, layer.path, 188, 222,
+    char pathBuf[64];
+    const char* path = lsPath(layer.path, pathBuf, sizeof pathBuf);
+    lv_obj_t* img = makeArtSlot(artPanel, *storage_, path, 169, 200,
                                 layer.fallback, layer.hideIfMissing);
     lv_obj_align(img, LV_ALIGN_BOTTOM_MID, 0, 0);
   }
