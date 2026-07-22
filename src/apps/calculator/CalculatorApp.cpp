@@ -3,6 +3,8 @@
 #include <cstring>
 #include <string>
 
+#include "core/Layout.h"
+
 namespace {
 
 // 4 columns × 5 rows. × (U+00D7) and ÷ (U+00F7) exist in montserrat_pt_14
@@ -20,18 +22,18 @@ constexpr lv_coord_t kDisplayH = 56;  // readout strip; keypad fills the rest
 }  // namespace
 
 void CalculatorApp::buildUI(lv_obj_t* parent) {
-  // Parent is the launcher's style-stripped 240×288 container below the top
+  // Parent is the launcher's style-stripped layout::kAppW × kAppH container below the top
   // bar (back arrow is the launcher's — none here).
   displayLabel_ = lv_label_create(parent);
   lv_label_set_long_mode(displayLabel_, LV_LABEL_LONG_CLIP);
-  lv_obj_set_width(displayLabel_, 240 - 16);
+  lv_obj_set_width(displayLabel_, layout::kAppW - 16);
   lv_obj_set_style_text_align(displayLabel_, LV_TEXT_ALIGN_RIGHT, 0);
   lv_obj_align(displayLabel_, LV_ALIGN_TOP_MID, 0, (kDisplayH - 16) / 2);
 
   lv_obj_t* pad = lv_btnmatrix_create(parent);
   lv_btnmatrix_set_map(pad, kKeypadMap);
   lv_obj_set_pos(pad, 0, kDisplayH);
-  lv_obj_set_size(pad, 240, 288 - kDisplayH);  // 5 rows ≈ 46 px — good targets
+  lv_obj_set_size(pad, layout::kAppW, layout::kAppH - kDisplayH);  // 5 rows ≈ 46 px — good targets
   lv_obj_add_event_cb(pad, keyPressed, LV_EVENT_VALUE_CHANGED, this);
 
   refresh();

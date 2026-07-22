@@ -32,6 +32,7 @@ class WeatherApp : public App {
 
  private:
   void render(const ForecastWx& f, bool stale);  // full rebuild of root_
+  void renderLandscape(const ForecastWx& f, bool stale);
   void renderEmpty();          // no data at all: friendly hint (spec §6.5)
   bool renderCached();         // true if a parseable cache was rendered
   void refreshNow(uint32_t now_ms);  // blocking: connect + fetch + re-render

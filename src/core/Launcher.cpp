@@ -3,6 +3,9 @@
 #include <cctype>
 
 #include "../services/LvglFs.h"
+#include "core/Layout.h"
+
+using layout::kTopBarH;
 
 namespace {
 constexpr lv_coord_t kCellW = 80;
@@ -96,6 +99,7 @@ void Launcher::tick(uint32_t now_ms) {
 }
 
 void Launcher::buildHomeScreen() {
+  model_.setColumns(layout::kGridCols);
   homeScreen_ = lv_obj_create(NULL);
   lv_obj_set_style_bg_color(homeScreen_, lv_color_hex(0x101418), 0);
   lv_obj_set_style_text_color(homeScreen_, lv_color_white(), 0);
@@ -105,7 +109,7 @@ void Launcher::buildHomeScreen() {
   gridContainer_ = lv_obj_create(homeScreen_);
   lv_obj_remove_style_all(gridContainer_);
   lv_obj_set_pos(gridContainer_, 0, StatusBar::kHeight);
-  lv_obj_set_size(gridContainer_, 240, 320 - StatusBar::kHeight);
+  lv_obj_set_size(gridContainer_, layout::kScreenW, layout::kScreenH - StatusBar::kHeight);
   lv_obj_clear_flag(gridContainer_, LV_OBJ_FLAG_SCROLLABLE);
 }
 
@@ -186,7 +190,7 @@ void Launcher::buildAppScreen() {
   // Top bar with back arrow — provided by the Launcher; apps build below it.
   lv_obj_t* topBar = lv_obj_create(appScreen_);
   lv_obj_remove_style_all(topBar);
-  lv_obj_set_size(topBar, 240, kTopBarH);
+  lv_obj_set_size(topBar, layout::kScreenW, kTopBarH);
   lv_obj_set_pos(topBar, 0, 0);
   lv_obj_set_style_bg_color(topBar, lv_color_hex(0x1B2026), 0);
   lv_obj_set_style_bg_opa(topBar, LV_OPA_COVER, 0);
@@ -213,7 +217,7 @@ void Launcher::resetAppContainer() {
   appContainer_ = lv_obj_create(appScreen_);
   lv_obj_remove_style_all(appContainer_);
   lv_obj_set_pos(appContainer_, 0, kTopBarH);
-  lv_obj_set_size(appContainer_, 240, 320 - kTopBarH);
+  lv_obj_set_size(appContainer_, layout::kAppW, layout::kAppH);
 }
 
 void Launcher::showDisabledHint(const char* title) {

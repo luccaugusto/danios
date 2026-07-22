@@ -2,6 +2,7 @@
 
 #include <date_utils.h>  // dateKey() in todayKey(); use Task 0's form
 
+#include "core/Layout.h"
 #include "services/StorageService.h"
 #include "services/TimeService.h"
 
@@ -46,7 +47,10 @@ void addNeedRow(lv_obj_t* parent, const char* label, NeedLevel level) {
   lv_obj_t* row = lv_label_create(parent);
   lv_label_set_text_fmt(row, "%s: %s", label, needLevelLabelPt(level));
   lv_obj_set_style_text_color(row, needColor(level), 0);
-  lv_obj_set_width(row, LV_PCT(46));
+  // Portrait: two rows per line (46% of the 240-wide root). Landscape: the
+  // needs grid lives in the ~166 px right column, where 46% (~76 px) wraps
+  // "Energia: Crítico"-length text — full width gives 4 clean single lines.
+  lv_obj_set_width(row, LV_PCT(layout::kLandscape ? 100 : 46));
 }
 
 void addActionButton(lv_obj_t* parent, const char* text, lv_event_cb_t cb,
@@ -153,23 +157,49 @@ void PetApp::buildEgg() {
   }
 }
 
+// One column of the landscape Alive screen: a style-stripped flex column
+// that inherits the root's row layout.
+lv_obj_t* PetApp::makeColumn(lv_obj_t* parent, lv_coord_t pctWidth) {
+  lv_obj_t* col = lv_obj_create(parent);
+  lv_obj_remove_style_all(col);
+  lv_obj_set_size(col, LV_PCT(pctWidth), LV_PCT(100));
+  lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_row(col, 4, 0);
+  return col;
+}
+
 void PetApp::buildAlive() {
   const uint32_t today = todayKey();
-  lv_obj_set_flex_flow(root_, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_flex_align(root_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
-                        LV_FLEX_ALIGN_CENTER);
-  lv_obj_set_style_pad_row(root_, 4, 0);
-  lv_obj_set_style_pad_top(root_, 6, 0);
+  lv_obj_t* left = root_;
+  lv_obj_t* right = root_;
+  if (layout::kLandscape) {
+    // Two columns (spec 2026-07-22): sprite/name/health left, needs +
+    // actions right. The columns are flex children of the root row.
+    lv_obj_set_flex_flow(root_, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(root_, LV_FLEX_ALIGN_SPACE_EVENLY,
+                          LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_top(root_, 6, 0);
+    left = makeColumn(root_, 44);
+    right = makeColumn(root_, 52);
+  } else {
+    lv_obj_set_flex_flow(root_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(root_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(root_, 4, 0);
+    lv_obj_set_style_pad_top(root_, 6, 0);
+  }
 
-  lv_obj_t* nameLbl = lv_label_create(root_);
+  lv_obj_t* nameLbl = lv_label_create(left);
   lv_label_set_text(nameLbl, st_.name.c_str());
 
-  petImg_ = makePetArt(root_, *storage_, stageSprite(growthStage(st_, today)),
+  petImg_ = makePetArt(left, *storage_, stageSprite(growthStage(st_, today)),
                        104, 104, lv_palette_lighten(LV_PALETTE_BLUE, 2));
 
   // Mess sprites: tap one to clean (spec: uncleaned messes stack, cap 3).
   if (st_.mess > 0) {
-    lv_obj_t* messRow = lv_obj_create(root_);
+    lv_obj_t* messRow = lv_obj_create(left);
     lv_obj_remove_style_all(messRow);
     lv_obj_set_size(messRow, LV_PCT(100), 34);
     lv_obj_set_flex_flow(messRow, LV_FLEX_FLOW_ROW);
@@ -183,7 +213,7 @@ void PetApp::buildAlive() {
     }
   }
 
-  lv_obj_t* health = lv_label_create(root_);
+  lv_obj_t* health = lv_label_create(left);
   const Health h = healthOf(st_, today);
   lv_label_set_text(health, healthLabelPt(h));
   lv_obj_set_style_text_color(
@@ -192,7 +222,7 @@ void PetApp::buildAlive() {
                            : lv_palette_main(LV_PALETTE_RED),
       0);
 
-  lv_obj_t* grid = lv_obj_create(root_);
+  lv_obj_t* grid = lv_obj_create(right);
   lv_obj_remove_style_all(grid);
   lv_obj_set_size(grid, LV_PCT(100), LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
@@ -204,12 +234,12 @@ void PetApp::buildAlive() {
   addNeedRow(grid, "Energia", energyLevel(st_, today));
 
   if (!time_->isTimeKnown()) {
-    lv_obj_t* hint = lv_label_create(root_);
+    lv_obj_t* hint = lv_label_create(right);
     lv_label_set_text(hint, "Sem data - configure o relógio");
     lv_obj_set_style_text_color(hint, lv_palette_main(LV_PALETTE_RED), 0);
   }
 
-  lv_obj_t* btnRow = lv_obj_create(root_);
+  lv_obj_t* btnRow = lv_obj_create(right);
   lv_obj_remove_style_all(btnRow);
   lv_obj_set_size(btnRow, LV_PCT(100), LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(btnRow, LV_FLEX_FLOW_ROW_WRAP);
@@ -277,7 +307,8 @@ void PetApp::doHatch(const std::string& name) {
 void PetApp::openFoodTray() {
   if (modal_) return;  // already open: don't orphan the first modal
   lv_obj_t* modal = lv_obj_create(lv_layer_top());
-  lv_obj_set_size(modal, 210, 250);
+  lv_obj_set_size(modal, LV_MIN(210, layout::kAppW - 8),
+                  LV_MIN(250, layout::kAppH - 8));  // 210x200 landscape
   lv_obj_center(modal);
   lv_obj_set_flex_flow(modal, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(modal, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER,

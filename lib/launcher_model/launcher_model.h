@@ -14,6 +14,10 @@ class LauncherModel {
  public:
   explicit LauncherModel(int columns);
 
+  // Grid geometry can be set after registration (orientation is only known
+  // once NVS is read); columns feed slotOf() math only.
+  void setColumns(int columns);
+
   // Returns the registration index (0-based), or -1 for a duplicate/empty id.
   // Registration order = grid order (roadmap §4.5). inGrid=false entries
   // (Settings) are openable but get no grid slot.

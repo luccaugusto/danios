@@ -1,6 +1,7 @@
 #include "apps/settings/Sections.h"
 
 #include "services/DisplayService.h"
+#include <esp_system.h>
 
 namespace {
 
@@ -30,6 +31,24 @@ void sleepChanged(lv_event_t* e) {
   if (idx < kSleepCount) {
     ctx.store->setU32("disp.sleep_s", kSleepSeconds[idx]);
   }
+}
+
+void orientationMsgboxCb(lv_event_t* e) {
+  lv_obj_t* mbox = lv_event_get_current_target(e);
+  const uint16_t btn = lv_msgbox_get_active_btn(mbox);
+  lv_msgbox_close(mbox);
+  if (btn == 0) esp_restart();  // "Reiniciar"
+}
+
+void orientationChanged(lv_event_t* e) {
+  lv_obj_t* sw = lv_event_get_target(e);
+  const bool landscape = lv_obj_has_state(sw, LV_STATE_CHECKED);
+  ctx.store->setBool("disp.landscape", landscape);
+  static const char* kBtns[] = {"Reiniciar", "Depois", ""};
+  lv_obj_t* m = lv_msgbox_create(NULL, "Orientação",
+                                 "Reinicie para aplicar.", kBtns, true);
+  lv_obj_add_event_cb(m, orientationMsgboxCb, LV_EVENT_VALUE_CHANGED, nullptr);
+  lv_obj_center(m);
 }
 
 }  // namespace
@@ -62,4 +81,12 @@ void buildDisplaySection(lv_obj_t* parent, ISettingsStore& store, DisplayService
   }
   lv_dropdown_set_selected(dd, sel);
   lv_obj_add_event_cb(dd, sleepChanged, LV_EVENT_VALUE_CHANGED, nullptr);
+
+  lv_obj_t* orientLbl = lv_label_create(parent);
+  lv_label_set_text(orientLbl, "Deitado (USB à esquerda)");
+
+  lv_obj_t* sw = lv_switch_create(parent);
+  if (store.getBool("disp.landscape", false))
+    lv_obj_add_state(sw, LV_STATE_CHECKED);
+  lv_obj_add_event_cb(sw, orientationChanged, LV_EVENT_VALUE_CHANGED, nullptr);
 }

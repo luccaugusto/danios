@@ -15,6 +15,7 @@
 #include "apps/weather/WeatherApp.h"
 #include "apps/weather/WeatherFetch.h"
 #include "core/Launcher.h"
+#include "core/Layout.h"
 #include "core/StatusBar.h"
 #include "core/Version.h"
 #include "services/BluetoothAudioService.h"
@@ -107,7 +108,7 @@ static void showSdMissingError() {
       "Seu bichinho está bem - ele mora dentro de mim, não no cartão!\n\n"
       "Insira o cartão e reinicie para trazer tudo de volta.",
       kBtns, false);
-  lv_obj_set_width(m, 230);  // near-full-width on the 240 px portrait screen
+  lv_obj_set_width(m, layout::kScreenW - 10);  // near-full-width either orientation
   lv_obj_center(m);
   lv_obj_add_event_cb(m, sdErrorMsgboxCb, LV_EVENT_VALUE_CHANGED, nullptr);
 }
@@ -136,6 +137,9 @@ void setup() {
   const bool sdOk = storage.begin();
   // Spec 3.4 step 2: open settings (NVS namespace "danios").
   settings.begin();
+  // Orientation is a reboot-to-apply setting (spec 2026-07-22): resolve it
+  // before ANY display or widget code runs.
+  layout::init(settings.getBool("disp.landscape", false));
   timeService.begin();  // apply persisted TZ before anything reads the clock
 
   displayService.begin();  // F1 API: panel + LVGL + flush binding
@@ -172,13 +176,14 @@ void setup() {
     launcher.setAppEnabled("oracle", false);
   }
 
-  // Boot splash: the hand-drawn logo (240x288 on the 240x320 screen) shows on
-  // every boot for at least kSplashMinMs; the WiFi bring-up below happens
-  // behind it, with the "Conectando" label in the 32 px strip under the logo.
-  // Screen bg matches the logo's baked-in purple so the strip blends in.
-  // Missing SD (or file) -> logo stays nullptr and the label centers itself,
-  // the pre-logo behavior.
-  static constexpr char kBootLogo[] = "S:/art/boot-logo.bin";
+  // Boot splash: the hand-drawn logo shows on every boot for at least
+  // kSplashMinMs; the WiFi bring-up below happens behind it, with the
+  // "Conectando" label in the 32 px strip under the logo. Screen bg matches
+  // the logo's baked-in purple so the strip blends in. Missing SD (or file) ->
+  // logo stays nullptr and the label centers itself, the pre-logo behavior.
+  const char* const kBootLogo = layout::kLandscape
+      ? "S:/art/ls/boot-logo.bin"   // 173x208, pre-scaled (LVGL can't zoom SD art)
+      : "S:/art/boot-logo.bin";     // 240x288
   static constexpr uint32_t kSplashMinMs = 2000;
   const uint32_t splashStart = millis();
   lv_obj_t* logo = nullptr;

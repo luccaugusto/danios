@@ -38,6 +38,9 @@ class PetApp : public App {
   void buildAlive();
   void buildMemorial();
 
+  // Landscape layout helper.
+  static lv_obj_t* makeColumn(lv_obj_t* parent, lv_coord_t pctWidth);
+
   // Flows.
   void askName();               // egg -> LVGL keyboard naming modal
   void doHatch(const std::string& name);

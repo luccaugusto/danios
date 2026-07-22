@@ -5,6 +5,7 @@
 
 #include <cstdio>
 
+#include "core/Layout.h"
 #include "services/StorageService.h"
 
 namespace {
@@ -45,7 +46,11 @@ void PomodoroApp::buildUI(lv_obj_t* parent) {
   lv_obj_t* slot = lv_obj_create(parent);
   lv_obj_remove_style_all(slot);
   lv_obj_set_size(slot, 120, 120);
-  lv_obj_align(slot, LV_ALIGN_TOP_MID, 0, 6);
+  // Landscape (spec 2026-07-22): two columns — art + countdown on the left
+  // (centred at x=80), start/stop + steppers stacked on the right. Portrait
+  // keeps its single-column ladder.
+  lv_obj_align(slot, LV_ALIGN_TOP_MID, layout::kLandscape ? -80 : 0,
+               layout::kLandscape ? 20 : 6);
   box_ = lv_obj_create(slot);
   lv_obj_remove_style_all(box_);
   lv_obj_set_size(box_, 120, 120);
@@ -58,17 +63,28 @@ void PomodoroApp::buildUI(lv_obj_t* parent) {
 
   countdown_ = lv_label_create(parent);
   lv_obj_set_style_text_font(countdown_, &lv_font_montserrat_48, 0);
-  lv_obj_align(countdown_, LV_ALIGN_TOP_MID, 0, 132);
+  lv_obj_align(countdown_, LV_ALIGN_TOP_MID, layout::kLandscape ? -80 : 0,
+               layout::kLandscape ? 150 : 132);
 
   lv_obj_t* btn = lv_btn_create(parent);
-  lv_obj_set_size(btn, 150, 36);
-  lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, 186);
+  if (layout::kLandscape) {
+    lv_obj_set_size(btn, 144, 36);
+    lv_obj_align(btn, LV_ALIGN_TOP_LEFT, 168, 16);
+  } else {
+    lv_obj_set_size(btn, 150, 36);
+    lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, 186);
+  }
   btnLbl_ = lv_label_create(btn);
   lv_obj_center(btnLbl_);
   lv_obj_add_event_cb(btn, onStartStop, LV_EVENT_CLICKED, this);
 
-  buildStepperRow(parent, 232, "Trabalho", &workVal_, onWorkMinus, onWorkPlus);
-  buildStepperRow(parent, 261, "Pausa", &breakVal_, onBreakMinus, onBreakPlus);
+  if (layout::kLandscape) {
+    buildStepperRow(parent, 64, "Trabalho", &workVal_, onWorkMinus, onWorkPlus);
+    buildStepperRow(parent, 118, "Pausa", &breakVal_, onBreakMinus, onBreakPlus);
+  } else {
+    buildStepperRow(parent, 232, "Trabalho", &workVal_, onWorkMinus, onWorkPlus);
+    buildStepperRow(parent, 261, "Pausa", &breakVal_, onBreakMinus, onBreakPlus);
+  }
 
   syncAll(millis());
   lastLblMs_ = millis();
@@ -77,13 +93,20 @@ void PomodoroApp::buildUI(lv_obj_t* parent) {
 void PomodoroApp::buildStepperRow(lv_obj_t* parent, lv_coord_t y,
                                   const char* name, lv_obj_t** valLbl,
                                   lv_event_cb_t minusCb, lv_event_cb_t plusCb) {
+  // Landscape: the row lives in the right column (x >= 168); the name sits on
+  // its own line above the -/value/+ cluster, which keeps its TOP_RIGHT
+  // offsets (they land at x 180..312 on the 320 screen). Portrait: one line.
+  const lv_coord_t clusterY = layout::kLandscape ? y + 18 : y;
   lv_obj_t* lbl = lv_label_create(parent);
   lv_label_set_text(lbl, name);
-  lv_obj_align(lbl, LV_ALIGN_TOP_LEFT, 8, y + 6);
+  if (layout::kLandscape)
+    lv_obj_align(lbl, LV_ALIGN_TOP_LEFT, 168, y);
+  else
+    lv_obj_align(lbl, LV_ALIGN_TOP_LEFT, 8, y + 6);
 
   lv_obj_t* minus = lv_btn_create(parent);
   lv_obj_set_size(minus, 32, 24);
-  lv_obj_align(minus, LV_ALIGN_TOP_RIGHT, -108, y);
+  lv_obj_align(minus, LV_ALIGN_TOP_RIGHT, -108, clusterY);
   lv_obj_t* ml = lv_label_create(minus);
   lv_label_set_text(ml, "-");
   lv_obj_center(ml);
@@ -92,11 +115,11 @@ void PomodoroApp::buildStepperRow(lv_obj_t* parent, lv_coord_t y,
   *valLbl = lv_label_create(parent);
   lv_obj_set_width(*valLbl, 64);
   lv_obj_set_style_text_align(*valLbl, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(*valLbl, LV_ALIGN_TOP_RIGHT, -42, y + 6);
+  lv_obj_align(*valLbl, LV_ALIGN_TOP_RIGHT, -42, clusterY + 6);
 
   lv_obj_t* plus = lv_btn_create(parent);
   lv_obj_set_size(plus, 32, 24);
-  lv_obj_align(plus, LV_ALIGN_TOP_RIGHT, -8, y);
+  lv_obj_align(plus, LV_ALIGN_TOP_RIGHT, -8, clusterY);
   lv_obj_t* pl = lv_label_create(plus);
   lv_label_set_text(pl, "+");
   lv_obj_center(pl);
