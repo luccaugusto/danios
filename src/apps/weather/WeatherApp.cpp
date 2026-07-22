@@ -130,18 +130,19 @@ void WeatherApp::render(const ForecastWx& f, bool stale) {
   // exported pre-positioned relative to the character — all three stack at
   // the same anchor and no per-sprite offsets live in code. The 198x234 PNGs
   // are converted at 95% (188x222); the y offset keeps her feet on the
-  // ground line the backgrounds draw at the old canvas bottom.
+  // ground line the backgrounds draw at the old canvas bottom (27 = tuned
+  // on device 2026-07-22, +15 from the original 12).
   lv_obj_t* character = makeArtSlot(root_, *storage_, kCharacterPath, 188, 222,
                                     lv_palette_main(LV_PALETTE_GREY));
-  lv_obj_align(character, LV_ALIGN_TOP_MID, 0, 12);
+  lv_obj_align(character, LV_ALIGN_TOP_MID, 0, 27);
   lv_obj_t* outfit =
       makeArtSlot(root_, *storage_, art.outfit, 188, 222,
                   lv_palette_main(LV_PALETTE_GREY), /*hideIfMissing=*/true);
-  lv_obj_align(outfit, LV_ALIGN_TOP_MID, 0, 12);
+  lv_obj_align(outfit, LV_ALIGN_TOP_MID, 0, 27);
   lv_obj_t* overlay =
       makeArtSlot(root_, *storage_, art.overlay, 188, 222,
                   lv_palette_main(LV_PALETTE_ORANGE), /*hideIfMissing=*/true);
-  lv_obj_align(overlay, LV_ALIGN_TOP_MID, 0, 12);
+  lv_obj_align(overlay, LV_ALIGN_TOP_MID, 0, 27);
 
   // Readings (spec): current temp + condition, city, today's high/low.
   lv_obj_t* temp = makeReadout(root_);
