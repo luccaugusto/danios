@@ -47,7 +47,10 @@ void addNeedRow(lv_obj_t* parent, const char* label, NeedLevel level) {
   lv_obj_t* row = lv_label_create(parent);
   lv_label_set_text_fmt(row, "%s: %s", label, needLevelLabelPt(level));
   lv_obj_set_style_text_color(row, needColor(level), 0);
-  lv_obj_set_width(row, LV_PCT(46));
+  // Portrait: two rows per line (46% of the 240-wide root). Landscape: the
+  // needs grid lives in the ~166 px right column, where 46% (~76 px) wraps
+  // "Energia: Crítico"-length text — full width gives 4 clean single lines.
+  lv_obj_set_width(row, LV_PCT(layout::kLandscape ? 100 : 46));
 }
 
 void addActionButton(lv_obj_t* parent, const char* text, lv_event_cb_t cb,
