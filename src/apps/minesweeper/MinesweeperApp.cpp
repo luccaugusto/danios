@@ -18,22 +18,26 @@ struct Preset {
   const char* bestKey;
 };
 
-// Landscape boards are wide-short (208 px tall app area, spec 2026-07-17):
-// 6 rows x 12 cols max keeps 26 px cells. Mine ratios track the portrait
-// presets (Fácil ~22%, Difícil ~28%). Separate best-time keys — a 6x9 Fácil
-// is not the same game as the portrait 9x9, so times don't compare.
-constexpr Preset kEasy = layout::kLandscape
-                             ? Preset{6, 9, 12, "mines_best_easy_l"}
-                             : Preset{9, 9, 18, "mines_best_easy"};
-constexpr Preset kHard = layout::kLandscape
-                             ? Preset{6, 12, 20, "mines_best_hard_l"}
-                             : Preset{13, 9, 33, "mines_best_hard"};
-
-// Board HUD: one row above the grid; slimmed in landscape to buy grid height.
-constexpr lv_coord_t kHudH = layout::kLandscape ? 28 : 32;
+// Orientation is resolved at boot (layout::init), so preset/clamp values are
+// computed at call time, not static-init. Landscape boards are wide-short
+// (208 px tall app area): 6 rows x 12 cols max keeps 26 px cells. Mine
+// ratios track the portrait presets (Fácil ~22%, Difícil ~28%). Separate
+// best-time keys — a 6x9 Fácil is not the same game as the portrait 9x9.
+const Preset& easyPreset() {
+  static const Preset kPortrait{9, 9, 18, "mines_best_easy"};
+  static const Preset kLs{6, 9, 12, "mines_best_easy_l"};
+  return layout::kLandscape ? kLs : kPortrait;
+}
+const Preset& hardPreset() {
+  static const Preset kPortrait{13, 9, 33, "mines_best_hard"};
+  static const Preset kLs{6, 12, 20, "mines_best_hard_l"};
+  return layout::kLandscape ? kLs : kPortrait;
+}
+// Board HUD row height; slimmer in landscape to buy grid height.
+inline lv_coord_t hudH() { return layout::kLandscape ? 28 : 32; }
 
 constexpr uint8_t kMinRC = 5;
-constexpr uint8_t kMaxRows = layout::kLandscape ? 6 : 14;
+inline uint8_t maxRows() { return layout::kLandscape ? 6 : 14; }
 constexpr uint8_t kMaxCols = 12;
 
 // 35% cap: keeps first-tap safety satisfiable (5x5: 8 <= 25-9) and admits
@@ -49,7 +53,7 @@ uint16_t clampU(uint32_t v, uint16_t lo, uint16_t hi) {
 // The played config records a best time only when it exactly matches a
 // preset — a manually dialed 9x9/18 is the same game as Fácil.
 const char* bestKeyFor(const MinesBoard& g) {
-  for (const Preset* p : {&kEasy, &kHard})
+  for (const Preset* p : {&easyPreset(), &hardPreset()})
     if (g.rows() == p->rows && g.cols() == p->cols && g.mineCount() == p->mines)
       return p->bestKey;
   return nullptr;
@@ -205,8 +209,8 @@ void MinesweeperApp::showStart() {
     const char* name;
     lv_event_cb_t cb;
   };
-  const PresetBtn pb[] = {{kEasy, "Fácil", onPresetEasy},
-                          {kHard, "Difícil", onPresetHard}};
+  const PresetBtn pb[] = {{easyPreset(), "Fácil", onPresetEasy},
+                          {hardPreset(), "Difícil", onPresetHard}};
   for (uint8_t i = 0; i < 2; ++i) {
     lv_obj_t* btn = lv_btn_create(root_);
     lv_obj_set_size(btn, 108, 52);
@@ -274,8 +278,8 @@ void MinesweeperApp::showStartLandscape() {
     const char* name;
     lv_event_cb_t cb;
   };
-  const PresetBtn pb[] = {{kEasy, "Fácil", onPresetEasy},
-                          {kHard, "Difícil", onPresetHard}};
+  const PresetBtn pb[] = {{easyPreset(), "Fácil", onPresetEasy},
+                          {hardPreset(), "Difícil", onPresetHard}};
   for (const PresetBtn& b : pb) {
     char best[16] = "-";
     const uint32_t bt = store_->getU32(b.p.bestKey, 0);
@@ -290,17 +294,17 @@ void MinesweeperApp::showStartLandscape() {
 
 void MinesweeperApp::loadSetup() {
   setupRows_ = static_cast<uint8_t>(
-      clampU(store_->getU32("mines_cfg_rows", kEasy.rows), kMinRC, kMaxRows));
+      clampU(store_->getU32("mines_cfg_rows", easyPreset().rows), kMinRC, maxRows()));
   setupCols_ = static_cast<uint8_t>(
-      clampU(store_->getU32("mines_cfg_cols", kEasy.cols), kMinRC, kMaxCols));
-  setupMines_ = clampU(store_->getU32("mines_cfg_mines", kEasy.mines), 1,
+      clampU(store_->getU32("mines_cfg_cols", easyPreset().cols), kMinRC, kMaxCols));
+  setupMines_ = clampU(store_->getU32("mines_cfg_mines", easyPreset().mines), 1,
                        maxMines(setupRows_, setupCols_));
 }
 
 void MinesweeperApp::stepSetup(uint8_t field, int8_t delta) {
   if (field == 0)
     setupRows_ = static_cast<uint8_t>(
-        clampU(setupRows_ + delta, kMinRC, kMaxRows));
+        clampU(setupRows_ + delta, kMinRC, maxRows()));
   else if (field == 1)
     setupCols_ = static_cast<uint8_t>(
         clampU(setupCols_ + delta, kMinRC, kMaxCols));
@@ -357,7 +361,7 @@ lv_obj_t* MinesweeperApp::makeTextBtn(const char* text, lv_coord_t x,
 void MinesweeperApp::newGame(uint8_t rows, uint8_t cols, uint16_t mines) {
   lv_obj_update_layout(root_);
   const lv_coord_t w = lv_obj_get_content_width(root_);
-  const lv_coord_t h = lv_obj_get_content_height(root_) - kHudH - 2;
+  const lv_coord_t h = lv_obj_get_content_height(root_) - hudH() - 2;
   cellPx_ = LV_MIN(w / cols, h / rows);
   if (cellPx_ > 32) cellPx_ = 32;  // small grids: don't balloon the cells
   accumMs_ = 0;
@@ -392,7 +396,7 @@ void MinesweeperApp::showBoard() {
   grid_ = lv_obj_create(root_);
   lv_obj_remove_style_all(grid_);
   lv_obj_set_size(grid_, game_->cols() * cellPx_, game_->rows() * cellPx_);
-  lv_obj_align(grid_, LV_ALIGN_TOP_MID, 0, kHudH + 2);
+  lv_obj_align(grid_, LV_ALIGN_TOP_MID, 0, hudH() + 2);
   lv_obj_add_flag(grid_, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(grid_, onGridDraw, LV_EVENT_DRAW_MAIN, this);
   lv_obj_add_event_cb(grid_, onGridClicked, LV_EVENT_CLICKED, this);
@@ -485,11 +489,11 @@ void MinesweeperApp::onStep(lv_event_t* e) {
 }
 void MinesweeperApp::onPresetEasy(lv_event_t* e) {
   static_cast<MinesweeperApp*>(lv_event_get_user_data(e))
-      ->applyPreset(kEasy.rows, kEasy.cols, kEasy.mines);
+      ->applyPreset(easyPreset().rows, easyPreset().cols, easyPreset().mines);
 }
 void MinesweeperApp::onPresetHard(lv_event_t* e) {
   static_cast<MinesweeperApp*>(lv_event_get_user_data(e))
-      ->applyPreset(kHard.rows, kHard.cols, kHard.mines);
+      ->applyPreset(hardPreset().rows, hardPreset().cols, hardPreset().mines);
 }
 void MinesweeperApp::onPlay(lv_event_t* e) {
   auto* self = static_cast<MinesweeperApp*>(lv_event_get_user_data(e));

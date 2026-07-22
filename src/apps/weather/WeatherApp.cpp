@@ -210,8 +210,8 @@ void WeatherApp::renderLandscape(const ForecastWx& f, bool stale) {
     return buf;
   };
 
-  constexpr lv_coord_t kArtW = layout::kAppW / 2;  // 160
-  constexpr lv_coord_t kArtH = layout::kAppH;      // 208
+  const lv_coord_t kArtW = layout::kAppW / 2;  // 160
+  const lv_coord_t kArtH = layout::kAppH;      // 208
 
   // Art panel clips its children, so the oversized portrait art is
   // center-cropped by parking it at negative offsets.
