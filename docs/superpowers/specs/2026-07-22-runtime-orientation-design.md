@@ -79,3 +79,12 @@ Below the existing Brilho/Suspender controls:
   toggle Deitado → Reiniciar → boots landscape (USB left, touch correct,
   apps in landscape layouts) → toggle back → Depois → manual power cycle
   → portrait again.
+
+## Outcome (2026-07-22)
+
+Verified on device: the full toggle round-trip passed (portrait boot with
+key unset → Reiniciar into landscape → Depois + power cycle back to
+portrait). 247/247 native tests, single `cyd` env, `DANIOS_LANDSCAPE`
+gone from all code. Reviews confirmed static-init safety (no `layout::`
+reads before `layout::init`) and that the msgbox close-X cannot trigger
+the restart.
