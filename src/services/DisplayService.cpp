@@ -8,7 +8,8 @@
 void DisplayService::begin() {
   tft_.init();
   // Portrait = rotation 7, USB-C down. Landscape = rotation 6, USB-C left —
-  // pinned empirically by the Task 1 hardware probe (docs/DISPLAY.md).
+  // pinned empirically by the hardware probe (docs/DISPLAY.md "Landscape",
+  // full story in docs/superpowers/specs/2026-07-17-landscape-ui-design.md).
   tft_.setRotation(layout::kLandscape ? 6 : 7);
   // Touch calibration measured on THIS unit with LovyanGFX calibrateTouch at
   // rotation 7 (docs/DISPLAY.md). Supersedes the earlier hand-measured min/max

@@ -8,9 +8,9 @@
 #include <cstdlib>
 #include <cstring>
 
-namespace {
-
 #include "core/Layout.h"
+
+namespace {
 
 struct Preset {
   uint8_t rows, cols;

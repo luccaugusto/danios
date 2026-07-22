@@ -16,9 +16,35 @@ tft.setRotation(7);   // portrait, USB-C down — 240 wide × 320 tall
 tft.setBrightness(160);
 ```
 
-**All apps render at 240×320 portrait with `setRotation(7)`.** Origin (0,0) is
-top-left with the USB-C port at the bottom. `tft.width()` = 240,
-`tft.height()` = 320.
+**Apps render at 240×320 portrait with `setRotation(7)`** — or, in the
+`cyd-landscape` build, at **320×240 landscape with `setRotation(6)`**
+(see "Landscape" below). Origin (0,0) is top-left with the USB-C port at
+the bottom (portrait) or on the left (landscape). Layout code never uses
+these numbers directly: dimensions come from `src/core/Layout.h`
+(`layout::kScreenW/kScreenH/kAppW/kAppH`), selected by the
+`DANIOS_LANDSCAPE` build flag.
+
+## Landscape (spec 2026-07-17, verified on device)
+
+- Landscape = `setRotation(6)`, USB-C **left**, 320×240. (Rotation 4 is the
+  same image rotated 180°, USB-C right.)
+- **Touch needs its own calibration array AND a corner reorder.**
+  `calibrateTouch` internally cancels the rotation to 0 before drawing its
+  corner targets, and this clone's hardware mirror makes LovyanGFX's
+  `convertRawXY` apply the wrong mirror-family transform at rotation 6
+  (an x-flip where the panel needs a y-flip) — touches come back
+  point-reflected 180°. The fix lives in the calibration DATA: the raw
+  capture's corner pairs are reordered 180° (TL↔BR, BL↔TR) before use, so
+  the solved affine bakes in the correction. **Any landscape re-capture
+  must be reordered the same way before pasting** — a raw `calibrateTouch`
+  array will NOT work at rotation 6. Both arrays (portrait rotation-7,
+  landscape rotation-6 reordered) live in `DisplayService::begin()`.
+  Full derivation: `docs/superpowers/specs/2026-07-17-landscape-ui-design.md`.
+- LVGL 8 **cannot zoom file-backed images** (the FS decoder reads
+  line-by-line; transformed draws silently render nothing). Art that must
+  shrink for landscape ships pre-scaled on the SD card under `art/**/ls/`
+  (weather at 90%, boot logo 173×208), generated with
+  `assets/icons/svg_to_lvgl_bin.py --size WxH`.
 
 ## Facts
 
@@ -44,9 +70,12 @@ top-left with the USB-C port at the bottom. `tft.width()` = 240,
   captured with LovyanGFX `calibrateTouch` (at rotation 7) and replayed in
   `DisplayService::begin()` via `setTouchCalibrate()`. This replaced the earlier
   hand-measured min>max box constants, which mis-scaled the horizontal axis
-  (right-of-centre keys registered ~one key too far right). To re-calibrate,
-  re-run `calibrateTouch` (touch the 4 corner markers) and paste the new array;
-  don't hand-edit constants or add manual swap/mirror code.
+  (right-of-centre keys registered ~one key too far right). To re-calibrate
+  for portrait, re-run `calibrateTouch` (touch the 4 corner markers) and paste
+  the new array; don't hand-edit constants or add manual swap/mirror code.
+  **Landscape re-calibration additionally requires the 180° corner reorder —
+  see "Landscape" above; a raw capture pasted verbatim will point-reflect
+  every touch.**
 - Chip ID for sanity checks: RDID4 `0xD3` reads zeros (not a real ILI9341);
   RDDID `0x04` = `0x10 0x81 0xD9`.
 
@@ -55,8 +84,9 @@ top-left with the USB-C port at the bottom. `tft.width()` = 240,
 - LVGL **8.4** (v8 API), `include/lv_conf.h`, enabled via
   `-DLV_CONF_INCLUDE_SIMPLE -Iinclude`.
 - `src/services/DisplayService.{h,cpp}` owns the `LGFX` instance and the LVGL
-  display driver: **one 240×30 draw buffer** (14.4 KB, static — no PSRAM on
-  this board; a second buffer only pays off if the flush ever goes async).
+  display driver: **one 7200 px draw buffer** (14.4 KB, heap-allocated once —
+  no PSRAM on this board; same budget in both orientations; a second buffer
+  only pays off if the flush ever goes async).
 - **Byte order:** `LV_COLOR_16_SWAP 0`. The flush callback casts LVGL's buffer
   to `lgfx::rgb565_t*` and calls `writePixels()` inside
   `startWrite()/setAddrWindow()/endWrite()` — LovyanGFX converts to the
