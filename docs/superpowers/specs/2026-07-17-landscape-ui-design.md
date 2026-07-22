@@ -133,3 +133,15 @@ Portrait code path untouched. Landscape:
 After living with the landscape build: if it wins, the flag flips to
 default (or portrait is removed) in a follow-up; if not, the branch's
 constant cleanup can still be cherry-picked to main.
+
+## Outcome (2026-07-22)
+
+The on-device landscape checklist passed in full after three
+verification-driven fixes: the character sprites were invisible because
+LVGL 8 silently draws nothing when zooming file-backed images (fixed by
+dropping the zoom, then by pre-scaled 90% `ls/` art variants on the SD
+card), and the forecast list was re-flowed to stacked day-over-temps
+entries. Native suite 246/246, both envs build. **Verdict: landscape is
+promising — the follow-up phase ports the remaining five apps
+(spec 2026-07-22-landscape-all-apps-design.md). The portrait regression
+flash rolls into that phase's verification.**
