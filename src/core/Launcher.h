@@ -43,7 +43,7 @@ class Launcher {
   static void onBackClicked(lv_event_t* e);
 
   StatusBar& statusBar_;
-  LauncherModel model_{layout::kGridCols};
+  LauncherModel model_{3};  // columns set for real in buildHomeScreen()
   std::vector<App*> apps_;                 // index == model_ registration index
   App* active_ = nullptr;
   std::function<bool(RadioMode)> radioRequest_;

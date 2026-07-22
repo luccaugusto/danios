@@ -37,8 +37,8 @@ void DisplayService::begin() {
   }
   lv_disp_draw_buf_init(&drawBuf_, buf1_, nullptr, kBufPixels);
   lv_disp_drv_init(&dispDrv_);
-  dispDrv_.hor_res = kHorRes;
-  dispDrv_.ver_res = kVerRes;
+  dispDrv_.hor_res = layout::kScreenW;
+  dispDrv_.ver_res = layout::kScreenH;
   dispDrv_.flush_cb = flushCb;
   dispDrv_.draw_buf = &drawBuf_;
   dispDrv_.user_data = this;

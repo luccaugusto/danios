@@ -99,6 +99,7 @@ void Launcher::tick(uint32_t now_ms) {
 }
 
 void Launcher::buildHomeScreen() {
+  model_.setColumns(layout::kGridCols);
   homeScreen_ = lv_obj_create(NULL);
   lv_obj_set_style_bg_color(homeScreen_, lv_color_hex(0x101418), 0);
   lv_obj_set_style_text_color(homeScreen_, lv_color_white(), 0);

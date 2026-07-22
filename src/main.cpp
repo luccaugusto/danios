@@ -137,6 +137,9 @@ void setup() {
   const bool sdOk = storage.begin();
   // Spec 3.4 step 2: open settings (NVS namespace "danios").
   settings.begin();
+  // Orientation is a reboot-to-apply setting (spec 2026-07-22): resolve it
+  // before ANY display or widget code runs.
+  layout::init(settings.getBool("disp.landscape", false));
   timeService.begin();  // apply persisted TZ before anything reads the clock
 
   displayService.begin();  // F1 API: panel + LVGL + flush binding
@@ -178,7 +181,7 @@ void setup() {
   // "Conectando" label in the 32 px strip under the logo. Screen bg matches
   // the logo's baked-in purple so the strip blends in. Missing SD (or file) ->
   // logo stays nullptr and the label centers itself, the pre-logo behavior.
-  static constexpr const char* kBootLogo = layout::kLandscape
+  const char* const kBootLogo = layout::kLandscape
       ? "S:/art/ls/boot-logo.bin"   // 173x208, pre-scaled (LVGL can't zoom SD art)
       : "S:/art/boot-logo.bin";     // 240x288
   static constexpr uint32_t kSplashMinMs = 2000;

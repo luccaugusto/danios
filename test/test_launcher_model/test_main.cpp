@@ -86,6 +86,16 @@ void test_enabled_bookkeeping_and_can_open() {
   TEST_ASSERT_TRUE(m.canOpen("settings"));           // off-grid, still openable
 }
 
+void test_set_columns_after_registration() {
+  LauncherModel m(3);
+  for (int i = 0; i < 5; ++i) m.registerApp("app" + std::to_string(i));
+  m.setColumns(4);
+  TEST_ASSERT_EQUAL_INT(0, m.slotOf(3).row);
+  TEST_ASSERT_EQUAL_INT(3, m.slotOf(3).col);
+  TEST_ASSERT_EQUAL_INT(1, m.slotOf(4).row);
+  TEST_ASSERT_EQUAL_INT(0, m.slotOf(4).col);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_registration_order_and_count);
@@ -94,5 +104,6 @@ int main(int, char**) {
   RUN_TEST(test_grid_slots_three_columns);
   RUN_TEST(test_badge_bookkeeping);
   RUN_TEST(test_enabled_bookkeeping_and_can_open);
+  RUN_TEST(test_set_columns_after_registration);
   return UNITY_END();
 }

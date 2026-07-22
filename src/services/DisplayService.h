@@ -1,6 +1,7 @@
 // LVGL <-> LovyanGFX glue for the danios display. Owns the LGFX instance and
 // the LVGL display driver. Read docs/DISPLAY.md before touching this file —
-// the panel is a landscape-native 320x240 clone; orientation comes from layout::.
+// the panel is a landscape-native 320x240 clone; rotation and resolution are
+// runtime settings, resolved by layout::init() before begin() runs.
 #pragma once
 
 #include <lvgl.h>
@@ -30,8 +31,6 @@ private:
   static void flushCb(lv_disp_drv_t* drv, const lv_area_t* area,
                       lv_color_t* pixels);
 
-  static constexpr int16_t kHorRes = layout::kScreenW;
-  static constexpr int16_t kVerRes = layout::kScreenH;
   // Single buffer (14,400 bytes = 7200 px), same budget both orientations:
   // flushCb is synchronous, so a second buffer would never overlap render
   // with flush — it only earns its RAM if the flush ever goes async.

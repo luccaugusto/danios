@@ -2,6 +2,8 @@
 
 LauncherModel::LauncherModel(int columns) : columns_(columns < 1 ? 1 : columns) {}
 
+void LauncherModel::setColumns(int columns) { columns_ = columns; }
+
 int LauncherModel::registerApp(const std::string& id, bool inGrid) {
   if (id.empty() || indexOf(id) >= 0) return -1;
   entries_.push_back(Entry{id, inGrid, /*badge=*/false, /*enabled=*/true});
